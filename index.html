@@ -135,7 +135,7 @@
   .gantt .bar { position:absolute; top: 8px; height: 22px; border-radius: 4px;
     padding: 0 6px; font-size:.7rem; color:#0a0d12; font-weight:600;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    display:flex; align-items:center; cursor:default;
+    display:flex; align-items:center; cursor:pointer;
     box-shadow: 0 1px 0 rgba(0,0,0,.3); }
   .gantt .bar.commissioning { background: var(--blue); }
   .gantt .bar.breakdown { background: var(--red); }
@@ -529,23 +529,29 @@ function render() {
   } else {
     [...events].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e => {
       const type = eventType(e.notification);
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${e.still_down
-            ? '<span class="badge down">Down</span>'
-            : type==='breakdown'
-              ? '<span class="badge breakdown">Breakdown</span>'
-              : type==='maintenance'
-                ? '<span class="badge maintenance">Repair</span>'
-                : '<span class="badge commissioning">Commissioning</span>'}</td>
-        <td><strong>${e.asset}</strong></td>
-        <td>${e.notification.split(' (')[0]}<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">${(e.text||'').slice(0,90)}…</div></td>
-        <td>${fmtDT(e.start)}</td>
-        <td>${e.end ? fmtDT(e.end) : '<span style="color:var(--red);">— open —</span>'}</td>
-        <td>${(e.duration_hrs || hrsBetween(e.start, e.end)).toFixed(1)}</td>
-        <td style="color:var(--muted);font-size:.78rem;">${e.order || '—'}</td>
-      `;
-      tbody.appendChild(tr);
+            const notifId = (e.notification.match(/^\d+/) || [''])[0];
+            const sapUrl = notifId
+              ? `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`
+              : '';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${e.still_down
+                      ? '<span class="badge still">Still down</span>'
+                      : (type === 'breakdown'
+                          ? '<span class="badge breakdown">Breakdown</span>'
+                          : (e.notification.includes('ORDER')
+                              ? '<span class="badge maintenance">Repair</span>'
+                              : '<span class="badge commissioning">Commissioning</span>'))}</td>
+              <td><strong>${e.asset}</strong></td>
+              <td>${sapUrl
+                      ? `<a href="${sapUrl}" target="_blank" rel="noopener noreferrer" title="Open in SAP S/4HANA" style="color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);">${e.notification.split(' (')[0]}</a>`
+                      : e.notification.split(' (')[0]}<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">${(e.text||'').slice(0,90)}…</div></td>
+              <td>${fmtDT(e.start)}</td>
+              <td>${e.end ? fmtDT(e.end) : '<span style="color:var(--red);">— open —</span>'}</td>
+              <td>${(e.duration_hrs || hrsBetween(e.start, e.end)).toFixed(1)}</td>
+              <td style="color:var(--muted);font-size:.78rem;">${e.order || '—'}</td>
+            `;
+            tbody.appendChild(tr);
     });
   }
 
@@ -562,7 +568,15 @@ function render() {
       const icon = e.still_down ? '🔧' : t==='breakdown' ? '⚠️' : '✅';
       const tail = e.still_down ? ' · <span style="color:var(--red);">STILL DOWN</span>'
                                 : ' · <span style="color:var(--green);">closed</span>';
-      div.innerHTML = `${icon} <strong>${e.asset}</strong> — ${e.notification.split(' (')[0]}
+      const notifId = (e.notification.match(/^\d+/) || [''])[0];
+      const sapUrl = notifId
+        ? `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`
+        : '';
+      const notifText = e.notification.split(' (')[0];
+      const notifHtml = sapUrl
+        ? `<a href="${sapUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);">${notifText}</a>`
+        : notifText;
+      div.innerHTML = `${icon} <strong>${e.asset}</strong> — ${notifHtml}
         <div style="color:var(--muted); font-size:.75rem;">${fmtDT(e.start)}${tail}</div>`;
       feedEl.appendChild(div);
     });
@@ -698,6 +712,17 @@ function renderGantt(events) {
       const lbl = (e.notification.split(' (')[0] || '').slice(0, 28);
       bar.textContent = e.still_down ? '🔧 ' + lbl : lbl;
       bar.title = `${e.notification}\nAsset: ${e.asset}\nStart: ${fmtDT(e.start)}\nEnd: ${e.end ? fmtDT(e.end) : 'STILL DOWN'}\nDuration: ${(e.duration_hrs||hrsBetween(e.start,e.end)).toFixed(1)} h\n\n${e.text}`;
+      // Hyperlink → SAP notification detail page
+      const notifId = (e.notification.match(/^\d+/) || [''])[0];
+      if (notifId) {
+        const a = document.createElement('a');
+        a.href = `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.title = `Open notification ${notifId} in SAP S/4HANA`;
+        a.style.cssText = 'position:absolute; inset:0; z-index:2; text-decoration:none;';
+        bar.appendChild(a);
+      }
       lane.appendChild(bar);
     });
 
