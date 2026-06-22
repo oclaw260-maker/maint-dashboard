@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Maintenance Dashboard — New Site</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0d12;
+    --panel: #121821;
+    --panel-2: #1a2030;
+    --line: #2a2d34;
+    --text: #e8e8e8;
+    --muted: #9aa0a6;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --green: #10b981;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
+  header { display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom: 1px solid var(--line); padding-bottom: 16px; margin-bottom: 16px; }
+  header h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -.02em; }
+  header .sub { color: var(--muted); font-size: .9rem; }
+  .status-pill { display:inline-flex; align-items:center; gap:6px;
+    background: var(--panel-2); border:1px solid var(--line);
+    padding: 4px 10px; border-radius: 999px; font-size:.78rem; color:var(--muted); }
+  .pulse { width:8px; height:8px; border-radius:50%; background: var(--green);
+    box-shadow: 0 0 0 0 rgba(16,185,129,.7); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow:0 0 0 0 rgba(16,185,129,.7); }
+    70%  { box-shadow:0 0 0 8px rgba(16,185,129,0); }
+    100% { box-shadow:0 0 0 0 rgba(16,185,129,0); }
+  }
+  .insight { background: linear-gradient(135deg, rgba(245,158,11,.12), rgba(245,158,11,.02));
+    border:1px solid rgba(245,158,11,.3); border-radius: 10px; padding:14px 18px;
+    margin-bottom: 20px; font-size:.95rem; }
+  .insight strong { color: var(--amber); }
+  .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+  .col-3 { grid-column: span 3; }
+  .col-4 { grid-column: span 4; }
+  .col-6 { grid-column: span 6; }
+  .col-8 { grid-column: span 8; }
+  .col-12 { grid-column: span 12; }
+  @media (max-width: 900px) {
+    [class*="col-"] { grid-column: span 12; }
+  }
+  .panel { background: var(--panel); border:1px solid var(--line); border-radius: 10px;
+    padding: 16px; }
+  .panel h3 { margin: 0 0 12px; font-size:.85rem; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--muted); font-weight:600; }
+  .kpi { background: var(--panel); border:1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; border-top: 3px solid var(--amber); }
+  .kpi.red    { border-top-color: var(--red); }
+  .kpi.green  { border-top-color: var(--green); }
+  .kpi.blue   { border-top-color: var(--blue); }
+  .kpi.purple { border-top-color: var(--purple); }
+  .kpi .v { font-size: 2.2rem; font-weight: 700; line-height: 1; }
+  .kpi .l { color: var(--muted); font-size: .78rem; margin-top:6px;
+    text-transform: uppercase; letter-spacing:.05em; }
+  .kpi .delta { font-size: .75rem; margin-top:4px; color: var(--muted); }
+
+  /* Gantt */
+  .gantt-wrap { overflow-x: auto; padding-bottom: 6px; }
+  .gantt { display: grid; grid-template-columns: 90px 1fr; gap: 0;
+    min-width: 760px; }
+  .gantt .gh, .gantt .gc { display:flex; align-items:center; }
+  .gantt .gh { background: var(--panel-2); border-bottom:1px solid var(--line);
+    padding: 4px 8px; font-size:.72rem; color:var(--muted); font-weight:600;
+    text-transform: uppercase; }
+  .gantt .gh.right { border-left:1px solid var(--line); }
+  .gantt .asset { padding: 8px 8px; border-bottom:1px solid var(--line);
+    font-weight:600; font-size:.85rem; display:flex; flex-direction:column; justify-content:center; }
+  .gantt .asset .count { font-weight:400; color:var(--muted); font-size:.7rem; }
+  .gantt .lane { position:relative; border-bottom:1px solid var(--line);
+    border-left:1px solid var(--line); height: 52px; }
+  .gantt .bar { position:absolute; top: 8px; height: 22px; border-radius: 4px;
+    padding: 0 6px; font-size:.7rem; color:#0a0d12; font-weight:600;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    display:flex; align-items:center; cursor:default;
+    box-shadow: 0 1px 0 rgba(0,0,0,.3); }
+  .gantt .bar.commissioning { background: var(--blue); }
+  .gantt .bar.breakdown { background: var(--red); }
+  .gantt .bar.maintenance { background: var(--amber); color:#1a1a1a; }
+  .gantt .bar.still { background: repeating-linear-gradient(45deg, var(--red), var(--red) 6px, #b91c1c 6px, #b91c1c 12px); color:#fff; }
+  .gantt .bar.overlap { outline: 2px solid #f59e0b; outline-offset:1px; }
+  .gantt .now { position:absolute; top:0; bottom:0; width:2px;
+    background: rgba(245,158,11,.8); z-index:5; pointer-events:none; }
+  .gantt .now::after { content:"NOW"; position:absolute; top:-18px; left:-16px;
+    font-size:.65rem; color:var(--amber); background:var(--panel); padding:1px 4px;
+    border:1px solid var(--line); border-radius:3px; }
+  .legend { display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:.78rem; color:var(--muted); }
+  .legend .item { display:flex; align-items:center; gap:6px; }
+  .swatch { width:14px; height:12px; border-radius:2px; }
+
+  table { width:100%; border-collapse: collapse; font-size:.85rem; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:600; font-size:.72rem; text-transform:uppercase;
+    letter-spacing:.05em; background: var(--panel-2); }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .badge { display:inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .badge.down { background: rgba(239,68,68,.15); color: var(--red); border:1px solid rgba(239,68,68,.4); }
+  .badge.commissioning { background: rgba(59,130,246,.15); color: var(--blue); border:1px solid rgba(59,130,246,.4); }
+  .badge.breakdown { background: rgba(239,68,68,.15); color: var(--red); border:1px solid rgba(239,68,68,.4); }
+  .badge.maintenance { background: rgba(245,158,11,.15); color: var(--amber); border:1px solid rgba(245,158,11,.4); }
+  .badge.done { background: rgba(16,185,129,.12); color: var(--green); border:1px solid rgba(16,185,129,.3); }
+
+  .chart-box { height: 260px; position: relative; }
+  .chart-box.tall { height: 320px; }
+
+  footer { margin-top: 30px; color: var(--muted); font-size:.78rem;
+    border-top:1px solid var(--line); padding-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>🛠️ Maintenance Dashboard</h1>
+      <div class="sub">SAP PM export · New site commissioning view</div>
+    </div>
+    <div class="status-pill">
+      <span class="pulse"></span>
+      <span id="rangeLabel">…</span>
+    </div>
+  </header>
+
+  <div class="insight" id="insight"></div>
+
+  <div class="grid">
+    <div class="col-3"><div class="kpi">          <div class="v" id="kpiEvents">–</div><div class="l">Notifications</div><div class="delta" id="kpiEventsD"></div></div></div>
+    <div class="col-3"><div class="kpi red">      <div class="v" id="kpiDown">–</div>   <div class="l">Still Down 🔴</div><div class="delta" id="kpiDownD"></div></div></div>
+    <div class="col-3"><div class="kpi blue">    <div class="v" id="kpiAssets">–</div><div class="l">Assets Touched</div><div class="delta" id="kpiAssetsD"></div></div></div>
+    <div class="col-3"><div class="kpi purple"> <div class="v" id="kpiHours">–</div> <div class="l">Logged Downtime (hrs)</div><div class="delta" id="kpiHoursD"></div></div></div>
+  </div>
+
+  <div class="grid" style="margin-top:16px;">
+    <div class="col-12">
+      <div class="panel">
+        <h3>Timeline — Malfunctions per Asset</h3>
+        <div class="gantt-wrap"><div class="gantt" id="gantt"></div></div>
+        <div class="legend">
+          <div class="item"><span class="swatch" style="background:var(--blue)"></span>Commissioning</div>
+          <div class="item"><span class="swatch" style="background:var(--red)"></span>Breakdown</div>
+          <div class="item"><span class="swatch" style="background:var(--amber)"></span>Other maintenance</div>
+          <div class="item"><span class="swatch" style="background:repeating-linear-gradient(45deg,var(--red),var(--red) 4px,#b91c1c 4px,#b91c1c 8px)"></span>Still down (no end time)</div>
+          <div class="item"><span class="swatch" style="outline:2px solid var(--amber); background:transparent"></span>Overlapping breakdown on same asset</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:16px;">
+    <div class="col-6"><div class="panel"><h3>Downtime Hours by Fleet Class</h3><div class="chart-box"><canvas id="fleetChart"></canvas></div></div></div>
+    <div class="col-6"><div class="panel"><h3>Notifications per Day</h3><div class="chart-box"><canvas id="dailyChart"></canvas></div></div></div>
+  </div>
+
+  <div class="grid" style="margin-top:16px;">
+    <div class="col-8"><div class="panel"><h3>All Notifications</h3><div style="overflow-x:auto;"><table id="tbl"><thead><tr><th>Status</th><th>Asset</th><th>Notification</th><th>Start</th><th>End</th><th>Hrs</th><th>Order</th></tr></thead><tbody></tbody></table></div></div></div>
+    <div class="col-4"><div class="panel"><h3>Activity Feed</h3><div id="feed" style="font-size:.85rem; line-height:1.5;"></div></div></div>
+  </div>
+
+  <footer>
+    Source: SAP S/4HANA Maintenance Notifications export · 14 records ·
+    Generated <span id="generated"></span> ·
+    "Still down" = no malfunction end time recorded (treated as ongoing).
+  </footer>
+</div>
+
+<script>
+const DATA = {"events": [{"notification": "P1 ROLL OVER LEAKING (10555105)", "asset": "DR3281", "start": "2026-06-18T08:00:00", "end": "2026-06-19T14:00:00", "duration_hrs": 30, "text": "19.06.2026 06:10:24 UTC (CB9980035412) | MINEMECH ORGANISED ROLLOVER FROM MT ISA |  | COMPLETED NM 19/6/2026 | 18.06.2026 01:11:21 UTC (CB9980035412) | P1 ROLL OVER LEAKING |  | TYLER FROM MINEMECH CHASING REPLACEMENT ROLLOVER", "order": "P1 ROLL OVER LEAKING (5011438)", "still_down": false}, {"notification": "COMMISSIONING WORK (10554932)", "asset": "DR3281", "start": "2026-06-17T06:00:00", "end": "2026-06-17T18:00:00", "duration_hrs": 12, "text": "17.06.2026 05:34:31 UTC (CB9980035412) | COMMISSIONING WORK |  | NATHAN FROM MINE MECH ON SITE CARRING OUT COMMISSIONING", "order": "COMMISSIONING WORK (5011246)", "still_down": false}, {"notification": "COMMISSIONING WORK (10555450)", "asset": "TD6766", "start": "2026-06-19T05:30:00", "end": "2026-06-19T13:00:00", "duration_hrs": 7.5, "text": "19.06.2026 04:18:13 UTC (CB9980035412) | COMMISSIONING WORK", "order": "COMMISSIONING WORK (5012195)", "still_down": false}, {"notification": "COMMISSIONING WORK (10555433)", "asset": "LO0564", "start": "2026-06-18T06:00:00", "end": "2026-06-18T12:00:00", "duration_hrs": 6, "text": "19.06.2026 03:33:54 UTC (CB9980035412) | COMMISSIONING WORK", "order": "COMMISSIONING WORK (5012186)", "still_down": false}, {"notification": "COMMISSIONING WORK (10555442)", "asset": "LO1679", "start": "2026-06-19T06:00:00", "end": "2026-06-19T11:30:00", "duration_hrs": 5.5, "text": "19.06.2026 04:38:43 UTC (CB9980035412) | CARRIED OUT COMMISSIONING | 19.06.2026 04:19:05 UTC (CB9980035412) | COMMISSIONING WORK", "order": "COMMISSIONING WORK (5012212)", "still_down": false}, {"notification": "COMMISSIONING (10555334)", "asset": "LO0557", "start": "2026-06-17T09:00:00", "end": "2026-06-17T13:30:00", "duration_hrs": 4.5, "text": "18.06.2026 20:23:25 UTC (CB9980035412) | COMMISSIONING |  | CARRY OUT COMMISSIONING |  | COMPLETED TR 18/6/2026", "order": "COMMISSIONING WORK (5011938)", "still_down": false}, {"notification": "COMMISSIONING WORK (10555435)", "asset": "LV4160", "start": "2026-06-15T06:00:00", "end": "2026-06-15T09:00:00", "duration_hrs": 3, "text": "19.06.2026 03:38:22 UTC (CB9980035412) | COMMISSIONING WORK", "order": "COMMISSIONING WORK (5012188)", "still_down": false}, {"notification": "COMMISSIONING WORK (10555417)", "asset": "LV4144", "start": "2026-06-16T09:00:00", "end": "2026-06-16T11:30:00", "duration_hrs": 2.5, "text": "19.06.2026 03:37:35 UTC (CB9980035412) | COMMISSIONING WORK", "order": "COMMISSIONING WORK (5012204)", "still_down": false}, {"notification": "COMMISSIONING WORK (10555434)", "asset": "LV4120", "start": "2026-06-16T11:30:00", "end": "2026-06-16T14:00:00", "duration_hrs": 2.5, "text": "19.06.2026 03:36:40 UTC (CB9980035412) | COMMISSIONING WORK", "order": "COMMISSIONING WORK (5012187)", "still_down": false}, {"notification": "COMMISSIONING WORK (10555418)", "asset": "LV4161", "start": "2026-06-15T05:30:00", "end": "2026-06-15T07:00:00", "duration_hrs": 1.5, "text": "19.06.2026 03:39:12 UTC (CB9980035412) | COMMISSIONING WORK", "order": "COMMISSIONING WORK (5012205)", "still_down": false}, {"notification": "REPLACE FUSEABLE LINK (10555341)", "asset": "LV4161", "start": "2026-06-19T06:56:28", "end": null, "duration_hrs": 0, "text": "18.06.2026 22:58:02 UTC (CB9980035412) | REPLACE FUSEABLE LINK | TR REQUESTED PARTS AS WE ARE STILL WAITING ON OEM PART TO GET UTE GOING", "order": "REPLACE FUSEABLE LINK (5011964)", "still_down": true}, {"notification": "REPAIR HYDRAULIC FAULTS (10555740)", "asset": "DR3281", "start": "2026-06-20T15:12:40", "end": null, "duration_hrs": 0, "text": "20.06.2026 07:14:42 UTC (CB9980035412) | DRILLING FAULT REPLACE VALVE #6, #18 |  | PARALLELING FAULT - HOSES HOOKED UP WRONG", "order": "REPAIR HYDRAULIC FAULTS (5012672)", "still_down": true}, {"notification": "REPLACE FRONT WIPER MOTOR (10555741)", "asset": "DR3281", "start": "2026-06-20T15:14:48", "end": null, "duration_hrs": 0, "text": "20.06.2026 07:17:07 UTC (CB9980035412) | REPLACE FRONT WIPER MOTOR |  | WIPER MOTOR SIEZED - REPLACED WITH NEW - MINEMECH SUPPLIED", "order": "REPLACE FRONT WIPER MOTOR (5012673)", "still_down": true}, {"notification": "ELECTRICAL COMMISSIONING (10555871)", "asset": "DR3281", "start": "2026-06-21T06:09:56", "end": null, "duration_hrs": 0, "text": "20.06.2026 22:11:12 UTC (CB9980035412) | ELECTRICAL COMMISSIONING |  | CARRY OUT INSPECTION", "order": "ELECTRICAL COMMISSIONING (5012833)", "still_down": true}], "now": "2026-06-21T12:09:56"};
+const now = new Date(DATA.now);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+const fleetClass = code => {
+  const p = code.slice(0,2);
+  return ({TD:'Trucks', LO:'Loaders', DR:'Drills', LV:'Light Vehicles'})[p] || 'Other';
+};
+const fleetColor = cls => ({
+  'Trucks':'#3b82f6','Loaders':'#10b981','Drills':'#a855f7',
+  'Light Vehicles':'#f59e0b','Other':'#6b7280'
+})[cls] || '#6b7280';
+const eventType = n => {
+  const t = (n||'').toUpperCase();
+  if (t.includes('COMMISSION')) return 'commissioning';
+  if (t.includes('BREAKDOWN') || t.includes('P1') || t.includes('ROLL OVER') || t.includes('HYDRAULIC')) return 'breakdown';
+  if (t.includes('REPLACE') || t.includes('REPAIR')) return 'maintenance';
+  return 'commissioning';  // default for a new site
+};
+const fmtDT = iso => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('en-AU', {
+    day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit',
+    timeZone:'Australia/Perth'
+  });
+};
+const fmtD = iso => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-AU', {
+    day:'2-digit', month:'short', timeZone:'Australia/Perth'
+  });
+};
+const hrsBetween = (a, b) => {
+  const e = b ? new Date(b) : now;
+  return (e - new Date(a)) / 3.6e6;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KPI
+const still = DATA.events.filter(e => e.still_down);
+const done  = DATA.events.filter(e => !e.still_down);
+const totalLoggedHrs = DATA.events.reduce((s,e) => {
+  if (e.duration_hrs && e.duration_hrs > 0) return s + e.duration_hrs;
+  // for still-down, compute "live" hours
+  return s + hrsBetween(e.start, e.end);
+}, 0);
+const assets = [...new Set(DATA.events.map(e => e.asset))];
+
+document.getElementById('kpiEvents').textContent  = DATA.events.length;
+document.getElementById('kpiEventsD').textContent = `${done.length} closed · ${still.length} open`;
+document.getElementById('kpiDown').textContent    = still.length;
+document.getElementById('kpiDownD').textContent   = still.length
+  ? `${[...new Set(still.map(s=>s.asset))].join(', ')}`
+  : 'All clear';
+document.getElementById('kpiAssets').textContent  = assets.length;
+document.getElementById('kpiAssetsD').textContent = `${(DATA.events.length / assets.length).toFixed(1)} events / asset`;
+document.getElementById('kpiHours').textContent   = Math.round(totalLoggedHrs);
+document.getElementById('kpiHoursD').textContent  = `≈ ${(totalLoggedHrs/24).toFixed(1)} equipment-days`;
+
+// Range label
+const minT = Math.min(...DATA.events.map(e => new Date(e.start).getTime()));
+const maxT = Math.max(...DATA.events.map(e => new Date(e.end || now).getTime()));
+document.getElementById('rangeLabel').textContent =
+  `${fmtD(new Date(minT).toISOString())} → ${fmtD(new Date(maxT).toISOString())}`;
+
+// Headline insight
+const topFleet = Object.entries(
+  DATA.events.reduce((a,e) => {
+    const k = fleetClass(e.asset);
+    a[k] = (a[k]||0) + (e.duration_hrs || hrsBetween(e.start, e.end));
+    return a;
+  }, {})
+).sort((a,b)=>b[1]-a[1])[0];
+const topAsset = Object.entries(
+  DATA.events.reduce((a,e) => {
+    a[e.asset] = (a[e.asset]||0) + (e.duration_hrs || hrsBetween(e.start, e.end));
+    return a;
+  }, {})
+).sort((a,b)=>b[1]-a[1])[0];
+document.getElementById('insight').innerHTML =
+  `<strong>${still.length}</strong> asset${still.length===1?'':'s'} currently down — ` +
+  `top offender <strong>${topAsset[0]}</strong> with <strong>${Math.round(topAsset[1])} hrs</strong> logged. ` +
+  `<strong>${topFleet[0]}</strong> dominate the downtime ledger. ` +
+  (still.length
+    ? `Open jobs waiting on parts/repair — flag the wiper + hydraulic repairs on <strong>DR3281</strong> and the LV4161 fuse-link (still chasing OEM part).`
+    : `Fleet is fully operational. ✅`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GANTT — overlaps + still-down detection
+// group by asset
+const byAsset = {};
+DATA.events.forEach(e => {
+  (byAsset[e.asset] = byAsset[e.asset] || []).push(e);
+});
+const sortedAssets = Object.keys(byAsset).sort((a,b) => {
+  const aa = byAsset[a].reduce((s,e)=>s+hrsBetween(e.start,e.end),0);
+  const bb = byAsset[b].reduce((s,e)=>s+hrsBetween(e.start,e.end),0);
+  return bb - aa;
+});
+
+// detect overlaps per asset
+Object.values(byAsset).forEach(list => {
+  for (let i=0;i<list.length;i++) {
+    for (let j=i+1;j<list.length;j++) {
+      const a = list[i], b = list[j];
+      const aS = new Date(a.start), aE = a.end ? new Date(a.end) : now;
+      const bS = new Date(b.start), bE = b.end ? new Date(b.end) : now;
+      if (aS < bE && bS < aE) { a._overlap = true; b._overlap = true; }
+    }
+  }
+});
+
+// build gantt
+const ganttEl = document.getElementById('gantt');
+// header
+const h1 = document.createElement('div'); h1.className = 'gh'; h1.textContent = 'Asset';
+const h2 = document.createElement('div'); h2.className = 'gh right'; h2.textContent = 'Timeline';
+ganttEl.appendChild(h1); ganttEl.appendChild(h2);
+
+// Cap the visible range: latest event end OR now, whichever is later, with
+// 6h padding on each side. This stops still-down bars from stretching the
+// timeline off the right edge.
+const rangeStart = minT - 6 * 3600 * 1000;
+const rangeEnd   = maxT + 6 * 3600 * 1000;
+const rangeMs    = rangeEnd - rangeStart;
+
+sortedAssets.forEach(asset => {
+  // asset label cell
+  const ac = document.createElement('div');
+  ac.className = 'asset';
+  const totalH = byAsset[asset].reduce((s,e)=>s + hrsBetween(e.start, e.end), 0);
+  ac.innerHTML = `<div>${asset}</div><div class="count">${byAsset[asset].length} evt · ${Math.round(totalH)}h</div>`;
+  ganttEl.appendChild(ac);
+
+  // lane
+  const lane = document.createElement('div');
+  lane.className = 'lane';
+
+  // day gridlines
+  const dayMs = 86400000;
+  const startDay = new Date(rangeStart); startDay.setHours(0,0,0,0);
+  for (let d = startDay.getTime(); d <= rangeEnd; d += dayMs) {
+    const x = ((d - rangeStart) / rangeMs) * 100;
+    if (x < 0 || x > 100) continue;
+    const g = document.createElement('div');
+    g.style.cssText = `position:absolute; left:${x}%; top:0; bottom:0;
+      border-left:1px dashed rgba(255,255,255,.05);`;
+    lane.appendChild(g);
+  }
+
+  // bars
+  byAsset[asset].forEach(e => {
+    const s = new Date(e.start).getTime();
+    const en = e.end ? new Date(e.end).getTime() : now.getTime();
+    const left = ((s - rangeStart) / rangeMs) * 100;
+    const w = Math.max(((en - s) / rangeMs) * 100, 0.6);
+    const bar = document.createElement('div');
+    bar.className = 'bar ' + (e.still_down ? 'still' : eventType(e.notification));
+    if (e._overlap && eventType(e.notification) === 'breakdown') bar.classList.add('overlap');
+    bar.style.left = left + '%';
+    bar.style.width = w + '%';
+    const lbl = (e.notification.split(' (')[0] || '').slice(0, 28);
+    bar.textContent = e.still_down ? '🔧 ' + lbl : lbl;
+    bar.title = `${e.notification}\nAsset: ${e.asset}\nStart: ${fmtDT(e.start)}\nEnd: ${e.end ? fmtDT(e.end) : 'STILL DOWN'}\nDuration: ${(e.duration_hrs||hrsBetween(e.start,e.end)).toFixed(1)} h\n\n${e.text}`;
+    lane.appendChild(bar);
+  });
+
+  // "now" marker if within range
+  if (now >= rangeStart && now <= rangeEnd) {
+    const nx = ((now - rangeStart) / rangeMs) * 100;
+    const m = document.createElement('div');
+    m.className = 'now';
+    m.style.left = nx + '%';
+    lane.appendChild(m);
+  }
+  ganttEl.appendChild(lane);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fleet chart
+const fleetAgg = {};
+DATA.events.forEach(e => {
+  const k = fleetClass(e.asset);
+  const h = e.duration_hrs || hrsBetween(e.start, e.end);
+  fleetAgg[k] = (fleetAgg[k]||0) + h;
+});
+const fleetLabels = Object.keys(fleetAgg);
+new Chart(document.getElementById('fleetChart'), {
+  type:'bar',
+  data:{
+    labels: fleetLabels,
+    datasets:[{
+      label:'Hours',
+      data: fleetLabels.map(l => Math.round(fleetAgg[l])),
+      backgroundColor: fleetLabels.map(fleetColor),
+      borderRadius: 4
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false} },
+    scales:{
+      y:{ ticks:{color:'#9aa0a6'}, grid:{color:'#2a2d34'} },
+      x:{ ticks:{color:'#9aa0a6'}, grid:{display:false} }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily chart
+const dayBuckets = {};
+DATA.events.forEach(e => {
+  const d = new Date(e.start);
+  const key = d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',timeZone:'Australia/Perth'});
+  dayBuckets[key] = (dayBuckets[key]||0) + 1;
+});
+const dailyLabels = Object.keys(dayBuckets);
+const dailyVals = dailyLabels.map(l => dayBuckets[l]);
+new Chart(document.getElementById('dailyChart'), {
+  type:'bar',
+  data:{
+    labels: dailyLabels,
+    datasets:[{
+      label:'Notifications opened',
+      data: dailyVals,
+      backgroundColor:'#f59e0b',
+      borderRadius: 4
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false} },
+    scales:{
+      y:{ ticks:{color:'#9aa0a6', stepSize:1}, grid:{color:'#2a2d34'}, beginAtZero:true },
+      x:{ ticks:{color:'#9aa0a6'}, grid:{display:false} }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Table
+const tbody = document.querySelector('#tbl tbody');
+[...DATA.events].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e => {
+  const type = eventType(e.notification);
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${e.still_down
+        ? '<span class="badge down">Down</span>'
+        : type==='breakdown'
+          ? '<span class="badge breakdown">Breakdown</span>'
+          : type==='maintenance'
+            ? '<span class="badge maintenance">Repair</span>'
+            : '<span class="badge commissioning">Commissioning</span>'}</td>
+    <td><strong>${e.asset}</strong></td>
+    <td>${e.notification.split(' (')[0]}<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">${(e.text||'').slice(0,90)}…</div></td>
+    <td>${fmtDT(e.start)}</td>
+    <td>${e.end ? fmtDT(e.end) : '<span style="color:var(--red);">— open —</span>'}</td>
+    <td>${(e.duration_hrs || hrsBetween(e.start, e.end)).toFixed(1)}</td>
+    <td style="color:var(--muted);font-size:.78rem;">${e.order || '—'}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feed
+const feedEl = document.getElementById('feed');
+[...DATA.events].sort((a,b)=>new Date(b.start)-new Date(a.start)).slice(0,8).forEach(e => {
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:8px 0; border-bottom:1px solid var(--line);';
+  const t = eventType(e.notification);
+  const icon = e.still_down ? '🔧' : t==='breakdown' ? '⚠️' : '✅';
+  const tail = e.still_down ? ' · <span style="color:var(--red);">STILL DOWN</span>'
+                            : ' · <span style="color:var(--green);">closed</span>';
+  div.innerHTML = `${icon} <strong>${e.asset}</strong> — ${e.notification.split(' (')[0]}
+    <div style="color:var(--muted); font-size:.75rem;">${fmtDT(e.start)}${tail}</div>`;
+  feedEl.appendChild(div);
+});
+
+document.getElementById('generated').textContent = new Date().toLocaleString('en-AU',{timeZone:'Australia/Perth'});
+</script>
+</body>
+</html>
