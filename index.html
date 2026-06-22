@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Maintenance Dashboard — New Site</title>
+<title>Mt Carlton Maintenance Dashboard — Macmahon</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -23,11 +23,16 @@
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
-  header { display:flex; justify-content:space-between; align-items:flex-end;
+  header { display:flex; justify-content:space-between; align-items:center;
     border-bottom: 1px solid var(--line); padding-bottom: 16px; margin-bottom: 16px;
-    flex-wrap: wrap; gap: 12px; }
-  header h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -.02em; }
-  header .sub { color: var(--muted); font-size: .9rem; }
+    flex-wrap: wrap; gap: 16px; }
+  .brand { display:flex; align-items:center; gap: 14px; }
+  .brand img { height: 56px; border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+  .brand .title-block h1 { font-size: 1.55rem; margin: 0 0 2px; letter-spacing: -.02em; }
+  .brand .title-block .sub { color: var(--muted); font-size: .82rem; }
+  .brand .title-block .legend { color: var(--amber); font-size: .72rem;
+    margin-top: 3px; font-weight: 500; }
   .status-pill { display:inline-flex; align-items:center; gap:6px;
     background: var(--panel-2); border:1px solid var(--line);
     padding: 4px 10px; border-radius: 999px; font-size:.78rem; color:var(--muted); }
@@ -163,9 +168,13 @@
 <div class="wrap">
 
   <header>
-    <div>
-      <h1>🛠️ Maintenance Dashboard</h1>
-      <div class="sub">SAP PM export · New site commissioning view</div>
+    <div class="brand">
+      <img src="logo-card.png" alt="Macmahon — Mt Carlton" />
+      <div class="title-block">
+        <h1>Mt Carlton Maintenance</h1>
+        <div class="sub">SAP PM notifications · Live site view</div>
+        <div class="legend">⚒️ On-site legend: Clarky</div>
+      </div>
     </div>
     <div class="status-pill">
       <span class="pulse"></span>
@@ -229,8 +238,11 @@
   <footer>
     Source: SAP S/4HANA Maintenance Notifications export ·
     <span id="rowCount">–</span> records shown ·
-    Generated <span id="generated"></span> ·
+    Mt Carlton Operations · Generated <span id="generated"></span> ·
     "Still down" = no malfunction end time recorded (treated as ongoing).
+    <div style="margin-top: 8px; font-style: italic; opacity: 0.7;">
+      Designed by Turbo's bot — built to be better than Copilot's slop. 🦾
+    </div>
   </footer>
 </div>
 
