@@ -69,6 +69,15 @@
   .filters .reset { margin-left:auto; color:var(--muted); }
   .filters .reset:hover { color: var(--red); border-color: var(--red) !important; }
   .filter-status { font-size:.78rem; color:var(--muted); margin-left:6px; }
+  .filters .shift-btn { background: var(--purple); color: #fff;
+    border-color: var(--purple); font-weight:600; margin-left:auto; }
+  .filters .shift-btn:hover { filter: brightness(1.15); border-color: var(--purple); }
+  .shift-tab { background: var(--panel-2); border:1px solid var(--line);
+    color: var(--text); padding: 6px 12px; border-radius: 6px; font-size:.78rem;
+    cursor: pointer; }
+  .shift-tab:hover { border-color: var(--amber); }
+  .shift-tab.active { background: var(--amber); color: #0a0d12; font-weight: 600;
+    border-color: var(--amber); }
 
   .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
   .col-3 { grid-column: span 3; }
@@ -198,6 +207,47 @@
     </div>
     <span class="filter-status" id="filterStatus"></span>
     <button class="reset" id="resetBtn" style="display:none;">Reset</button>
+    <button class="shift-btn" id="shiftBtn">📋 Generate Shift Report</button>
+  </div>
+
+  <!-- Shift report modal -->
+  <div id="shiftModal" style="display:none; position:fixed; inset:0;
+    background: rgba(0,0,0,.7); z-index: 100; overflow-y: auto;">
+    <div style="max-width: 900px; margin: 40px auto; background: var(--panel);
+      border:1px solid var(--line); border-radius: 12px; padding: 24px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;
+        margin-bottom: 16px;">
+        <div>
+          <h2 style="margin:0 0 4px; font-size: 1.3rem;">📋 Shift Report</h2>
+          <div style="color: var(--muted); font-size:.85rem;" id="shiftTitle">…</div>
+        </div>
+        <button id="closeShift" style="background:none; border:1px solid var(--line);
+          color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor:pointer;
+          font-size: .85rem;">✕ Close</button>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-bottom: 16px; flex-wrap:wrap;">
+        <button id="shiftSelectDay"  data-shift="day"  class="shift-tab">Day Shift (06:00–18:00)</button>
+        <button id="shiftSelectNight" data-shift="night" class="shift-tab">Night Shift (18:00–06:00)</button>
+        <button id="shiftSelectPrev"  data-shift="prev"  class="shift-tab">← Previous shift</button>
+        <button id="shiftSelectNext"  data-shift="next"  class="shift-tab">Next shift →</button>
+      </div>
+
+      <div id="shiftContent"></div>
+
+      <div style="display:flex; gap:8px; margin-top: 18px; padding-top: 14px;
+        border-top: 1px solid var(--line);">
+        <button id="dlHtml" style="background: var(--blue); color: #fff; border:none;
+          padding: 8px 16px; border-radius: 6px; font-weight:600; cursor:pointer;">
+          ⬇ Download HTML report</button>
+        <button id="dlText" style="background: var(--amber); color: #0a0d12; border:none;
+          padding: 8px 16px; border-radius: 6px; font-weight:600; cursor:pointer;">
+          ⬇ Download plain text (email body)</button>
+        <button id="copyText" style="background: var(--panel-2); color: var(--text);
+          border:1px solid var(--line); padding: 8px 16px; border-radius: 6px; cursor:pointer;
+          margin-left: auto;">📋 Copy text to clipboard</button>
+      </div>
+    </div>
   </div>
 
   <div class="insight" id="insight"></div>
@@ -706,6 +756,401 @@ document.getElementById('dateTo').max   = maxD;
 
 document.getElementById('generated').textContent = new Date().toLocaleString('en-AU',{timeZone:'Australia/Perth'});
 render();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHIFT REPORT — 12-hour shifts, 06:00–18:00 (day) and 18:00–06:00 (night)
+// Shift boundaries in Perth local time. We treat all events as local
+// datetimes (the source xlsx already has Perth TZ).
+function shiftWindow(which, ref) {
+  // ref: a Date representing "now" or some anchor
+  // which: 'day' | 'night' | 'current' | 'last'
+  // Returns { start, end, label } in Date objects.
+  // Day shift: 06:00 → 18:00 same day
+  // Night shift: 18:00 → next-day 06:00
+  // 'current' = the shift that contains ref
+  // 'last'    = the shift whose END is the most recent before ref
+  const d = new Date(ref);
+  const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
+  const dayStart  = new Date(y, m, day,  6, 0, 0);
+  const dayEnd    = new Date(y, m, day, 18, 0, 0);
+  const nightStart = dayEnd;
+  const nightEnd   = new Date(y, m, day + 1, 6, 0, 0);
+
+  if (which === 'day')   return { start: dayStart,   end: dayEnd,   label: 'Day' };
+  if (which === 'night') return { start: nightStart, end: nightEnd, label: 'Night' };
+  if (which === 'current') {
+    if (d >= dayStart && d < dayEnd)   return { start: dayStart,   end: dayEnd,   label: 'Day' };
+    // After 18:00 → night shift; before 06:00 → previous night's shift
+    if (d >= nightStart) return { start: nightStart, end: nightEnd, label: 'Night' };
+    // before today's 06:00 → previous night's shift
+    const prevNightStart = new Date(y, m, day - 1, 18, 0, 0);
+    const prevNightEnd   = new Date(y, m, day, 6, 0, 0);
+    return { start: prevNightStart, end: prevNightEnd, label: 'Night' };
+  }
+  if (which === 'last') {
+    // The shift whose END is the most recent strictly before ref.
+    // If ref is between 06:00 and 18:00, last shift is the previous night.
+    // If ref is >= 18:00, last shift is today's day shift.
+    // If ref is < 06:00, last shift is the day before yesterday's day shift? No —
+    // < 06:00 means we are in the night shift that started yesterday 18:00,
+    // so the last completed shift is the day before yesterday's day shift? No.
+    // Re-think: ref < 06:00 means we are in [yesterday 18:00, today 06:00).
+    // The most recent END strictly before ref is yesterday 06:00 (end of
+    // yesterday's night shift). So last shift = yesterday's night shift.
+    if (d < dayStart) {
+      // ref in last night's shift, last completed = night shift ending yesterday 06:00
+      const ns = new Date(y, m, day - 1, 18, 0, 0);
+      const ne = new Date(y, m, day,     6, 0, 0);
+      return { start: ns, end: ne, label: 'Night' };
+    }
+    if (d < nightStart) {
+      // ref in today's day shift, last completed = night shift ending today 06:00
+      const ns = new Date(y, m, day - 1, 18, 0, 0);
+      const ne = new Date(y, m, day,     6, 0, 0);
+      return { start: ns, end: ne, label: 'Night' };
+    }
+    // ref in tonight's night shift, last completed = today's day shift
+    return { start: dayStart, end: dayEnd, label: 'Day' };
+  }
+  return null;
+}
+
+// Hours of an event that fall inside the shift window.
+// Returns { hours, inShift (bool), startedInShift, endedInShift, startedBeforeShift, stillDown }
+function eventShiftOverlap(ev, win) {
+  const s = new Date(ev.start);
+  const e = ev.end ? new Date(ev.end) : now;
+  const overlapStart = Math.max(s.getTime(), win.start.getTime());
+  const overlapEnd   = Math.min(e.getTime(), win.end.getTime());
+  const hours = Math.max(0, (overlapEnd - overlapStart) / 3.6e6);
+  return {
+    hours,
+    inShift: hours > 0,
+    startedInShift:    s >= win.start && s < win.end,
+    endedInShift:      e >  win.start && e <= win.end,
+    startedBeforeShift: s < win.start,
+    stillDown: ev.still_down && e.getTime() >= win.end.getTime(),
+  };
+}
+
+let currentShift = null;
+let currentShiftAnchor = null;   // for "previous" / "next" navigation
+
+function buildShiftReport(win) {
+  currentShift = win;
+  const fmtWin = w => {
+    const date = w.start.toLocaleDateString('en-AU',
+      { weekday:'short', day:'2-digit', month:'short', timeZone:'Australia/Perth' });
+    const t = d => d.toLocaleTimeString('en-AU',
+      { hour:'2-digit', minute:'2-digit', timeZone:'Australia/Perth' });
+    return `${date} ${t(w.start)} → ${t(w.end)}`;
+  };
+  document.getElementById('shiftTitle').textContent =
+    `${win.label} Shift · ${fmtWin(win)}`;
+
+  // mark active shift tab (best-effort match against anchor)
+  document.querySelectorAll('.shift-tab').forEach(b => {
+    b.classList.remove('active');
+    if ((b.dataset.shift === 'day' && win.label === 'Day') ||
+        (b.dataset.shift === 'night' && win.label === 'Night')) {
+      b.classList.add('active');
+    }
+  });
+
+  const rows = ALL.map(ev => ({ ev, info: eventShiftOverlap(ev, win) }))
+                  .filter(r => r.info.inShift)
+                  .sort((a, b) => b.info.hours - a.info.hours);
+
+  // Still-down at end of shift (or still down now if we're viewing a past shift)
+  const stillDownAtEnd = rows.filter(r =>
+    r.ev.still_down && new Date(r.ev.start) < win.end && (!r.ev.end || new Date(r.ev.end) >= win.end)
+  );
+
+  // Aggregate by asset for the still-down summary
+  const stillDownByAsset = {};
+  stillDownAtEnd.forEach(r => {
+    stillDownByAsset[r.ev.asset] = stillDownByAsset[r.ev.asset] || {
+      asset: r.ev.asset, events: [], totalShiftHrs: 0
+    };
+    stillDownByAsset[r.ev.asset].events.push(r);
+    stillDownByAsset[r.ev.asset].totalShiftHrs += r.info.hours;
+  });
+
+  // All events in shift (sorted by start time)
+  const eventsInShift = [...rows].sort((a,b) =>
+    new Date(a.ev.start) - new Date(b.ev.start));
+
+  // KPI strip
+  const totalShiftHrs = rows.reduce((s, r) => s + r.info.hours, 0);
+  const breakdownRows = rows.filter(r => eventType(r.ev.notification) === 'breakdown');
+  const totalBdHrs = breakdownRows.reduce((s, r) => s + r.info.hours, 0);
+
+  let html = `
+    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:16px;">
+      <div class="kpi"><div class="v">${rows.length}</div><div class="l">Events this shift</div></div>
+      <div class="kpi red"><div class="v">${stillDownAtEnd.length}</div><div class="l">Still down at end</div></div>
+      <div class="kpi purple"><div class="v">${totalShiftHrs.toFixed(1)}</div><div class="l">Cumulative downtime (hrs)</div></div>
+      <div class="kpi blue"><div class="v">${totalBdHrs.toFixed(1)}</div><div class="l">Breakdown hours</div></div>
+    </div>`;
+
+  // Still-down callout (the most actionable section for managers)
+  if (Object.keys(stillDownByAsset).length) {
+    html += `<div style="background: linear-gradient(135deg, rgba(239,68,68,.12), rgba(239,68,68,.02));
+      border:1px solid rgba(239,68,68,.4); border-radius: 10px; padding:14px 18px; margin-bottom:16px;">
+      <div style="font-weight:600; color: var(--red); margin-bottom:8px;">
+        🔧 Assets still down at end of shift — escalate if needed
+      </div>`;
+    Object.values(stillDownByAsset)
+      .sort((a,b) => b.totalShiftHrs - a.totalShiftHrs)
+      .forEach(a => {
+        html += `<div style="margin-bottom: 8px; padding: 8px; background: rgba(0,0,0,.2); border-radius: 6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>${a.asset}</strong>
+            <span style="color: var(--red); font-weight:600;">${a.totalShiftHrs.toFixed(1)} hrs in shift</span>
+          </div>`;
+        a.events.forEach(r => {
+          const ev = r.ev;
+          const status = ev.still_down ? 'STILL DOWN' :
+                         `closed at ${fmtDT(ev.end)}`;
+          html += `<div style="font-size:.82rem; color: var(--muted); margin-top:4px;">
+            • ${ev.notification.split(' (')[0]} — ${status}
+            <span style="color: var(--amber);">(${r.info.hours.toFixed(1)}h this shift)</span>
+          </div>`;
+        });
+        html += `</div>`;
+      });
+    html += `</div>`;
+  } else {
+    html += `<div style="background: rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.3);
+      border-radius: 10px; padding:14px 18px; margin-bottom:16px; color: var(--green);">
+      ✅ All events in this shift were closed before end of shift. Fleet fully operational.
+    </div>`;
+  }
+
+  // Full events table
+  html += `<h3 style="margin: 0 0 8px; font-size:.85rem; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--muted); font-weight:600;">
+    Events during shift (${rows.length})</h3>
+    <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse: collapse; font-size:.85rem;">
+      <thead><tr style="background: var(--panel-2);">
+        <th style="text-align:left; padding:8px 10px; color:var(--muted); font-weight:600;
+          font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--line);">Asset</th>
+        <th style="text-align:left; padding:8px 10px; color:var(--muted); font-weight:600;
+          font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--line);">Notification</th>
+        <th style="text-align:left; padding:8px 10px; color:var(--muted); font-weight:600;
+          font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--line);">Started</th>
+        <th style="text-align:left; padding:8px 10px; color:var(--muted); font-weight:600;
+          font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--line);">Closed</th>
+        <th style="text-align:right; padding:8px 10px; color:var(--muted); font-weight:600;
+          font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--line);">Shift hrs</th>
+        <th style="text-align:left; padding:8px 10px; color:var(--muted); font-weight:600;
+          font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--line);">Status</th>
+      </tr></thead><tbody>`;
+  eventsInShift.forEach(r => {
+    const ev = r.ev;
+    const status = ev.still_down ? 'STILL DOWN' : 'closed';
+    const started = r.info.startedBeforeShift ? `${fmtDT(ev.start)} ← pre-shift` : fmtDT(ev.start);
+    const closed = ev.end ? fmtDT(ev.end) : '—';
+    html += `<tr style="border-bottom:1px solid var(--line);">
+      <td style="padding:8px 10px;"><strong>${ev.asset}</strong></td>
+      <td style="padding:8px 10px;">${ev.notification.split(' (')[0]}</td>
+      <td style="padding:8px 10px;">${started}</td>
+      <td style="padding:8px 10px;">${closed}</td>
+      <td style="padding:8px 10px; text-align:right; font-weight:600; color: var(--amber);">${r.info.hours.toFixed(1)}</td>
+      <td style="padding:8px 10px;">${ev.still_down
+        ? '<span style="color: var(--red); font-weight:600;">🔧 STILL DOWN</span>'
+        : '<span style="color: var(--green);">✓ closed</span>'}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+
+  document.getElementById('shiftContent').innerHTML = html;
+}
+
+function buildShiftTextReport(win) {
+  const fmtWin = w => {
+    const date = w.start.toLocaleDateString('en-AU',
+      { weekday:'short', day:'2-digit', month:'short', timeZone:'Australia/Perth' });
+    const t = d => d.toLocaleTimeString('en-AU',
+      { hour:'2-digit', minute:'2-digit', timeZone:'Australia/Perth' });
+    return `${date} ${t(w.start)} → ${t(w.end)}`;
+  };
+  const rows = ALL.map(ev => ({ ev, info: eventShiftOverlap(ev, win) }))
+                  .filter(r => r.info.inShift)
+                  .sort((a, b) => b.info.hours - a.info.hours);
+  const stillDownAtEnd = rows.filter(r =>
+    r.ev.still_down && new Date(r.ev.start) < win.end && (!r.ev.end || new Date(r.ev.end) >= win.end)
+  );
+  const stillDownByAsset = {};
+  stillDownAtEnd.forEach(r => {
+    stillDownByAsset[r.ev.asset] = stillDownByAsset[r.ev.asset] ||
+      { asset: r.ev.asset, events: [], totalShiftHrs: 0 };
+    stillDownByAsset[r.ev.asset].events.push(r);
+    stillDownByAsset[r.ev.asset].totalShiftHrs += r.info.hours;
+  });
+  const eventsInShift = [...rows].sort((a,b) =>
+    new Date(a.ev.start) - new Date(b.ev.start));
+  const totalShiftHrs = rows.reduce((s, r) => s + r.info.hours, 0);
+
+  let txt = `MT CARLTON MAINTENANCE — ${win.label.toUpperCase()} SHIFT REPORT\n`;
+  txt += `Window: ${fmtWin(win)}\n`;
+  txt += `Generated: ${now.toLocaleString('en-AU',{timeZone:'Australia/Perth'})}\n`;
+  txt += `\n`;
+  txt += `SUMMARY\n`;
+  txt += `  Events this shift:           ${rows.length}\n`;
+  txt += `  Still down at end of shift:  ${stillDownAtEnd.length}\n`;
+  txt += `  Cumulative downtime:         ${totalShiftHrs.toFixed(1)} hrs\n`;
+  txt += `\n`;
+
+  if (Object.keys(stillDownByAsset).length) {
+    txt += `STILL DOWN AT END OF SHIFT (escalate if needed)\n`;
+    Object.values(stillDownByAsset)
+      .sort((a,b) => b.totalShiftHrs - a.totalShiftHrs)
+      .forEach(a => {
+        txt += `  ${a.asset} — ${a.totalShiftHrs.toFixed(1)} hrs in shift\n`;
+        a.events.forEach(r => {
+          const ev = r.ev;
+          txt += `    - ${ev.notification.split(' (')[0]}` +
+                 ` (${r.info.hours.toFixed(1)}h this shift)` +
+                 (ev.still_down ? ' [STILL DOWN]\n' : `\n`);
+        });
+      });
+    txt += `\n`;
+  } else {
+    txt += `ALL CLEAR — all events in this shift were closed before end of shift.\n\n`;
+  }
+
+  txt += `EVENTS DURING SHIFT (${rows.length})\n`;
+  eventsInShift.forEach(r => {
+    const ev = r.ev;
+    const started = r.info.startedBeforeShift
+      ? `${fmtDT(ev.start)} (pre-shift)`
+      : fmtDT(ev.start);
+    const closed = ev.end ? fmtDT(ev.end) : 'STILL DOWN';
+    const status = ev.still_down ? 'STILL DOWN' : 'closed';
+    txt += `  [${ev.asset}] ${ev.notification.split(' (')[0]}\n`;
+    txt += `      Started: ${started}  |  Closed: ${closed}\n`;
+    txt += `      Shift hours: ${r.info.hours.toFixed(1)}  |  Status: ${status}\n`;
+  });
+
+  txt += `\n—\n`;
+  txt += `Mt Carlton Maintenance · SAP PM notifications · Generated by Turbo's bot\n`;
+  return txt;
+}
+
+function buildShiftHtmlReport(win, textBody) {
+  // A clean standalone HTML for download / email attach
+  return `<!doctype html><html><head><meta charset="utf-8">
+<title>Mt Carlton — ${win.label} Shift Report</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f7f7f8; color: #1a1a1a; padding: 32px; max-width: 800px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  h2 { font-size: 1.1rem; margin: 24px 0 8px; color: #444; border-bottom: 1px solid #ddd;
+    padding-bottom: 4px; }
+  pre { background: #1a1a1a; color: #f0f0f0; padding: 14px; border-radius: 6px;
+    white-space: pre-wrap; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .8rem; line-height: 1.5; }
+  .meta { color: #666; font-size: .9rem; }
+  .footer { margin-top: 32px; color: #888; font-size: .8rem; border-top: 1px solid #ddd;
+    padding-top: 12px; font-style: italic; }
+</style></head><body>
+<h1>Mt Carlton — ${win.label} Shift Report</h1>
+<div class="meta">Plain-text email body — copy/paste into Outlook</div>
+<h2>Email body</h2>
+<pre>${textBody.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+<div class="footer">Designed by Turbo's bot — built to be better than Copilot's slop.</div>
+</body></html>`;
+}
+
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+document.getElementById('shiftBtn').addEventListener('click', () => {
+  currentShiftAnchor = new Date(now);
+  const win = shiftWindow('last', currentShiftAnchor);
+  buildShiftReport(win);
+  document.getElementById('shiftModal').style.display = 'block';
+});
+
+document.getElementById('closeShift').addEventListener('click', () => {
+  document.getElementById('shiftModal').style.display = 'none';
+});
+
+document.querySelectorAll('.shift-tab').forEach(b => {
+  b.addEventListener('click', () => {
+    const action = b.dataset.shift;
+    if (action === 'day' || action === 'night') {
+      // Switch to day/night shift of the CURRENT anchor date
+      const d = currentShiftAnchor || new Date(now);
+      const y = d.getFullYear(), m = d.getMonth(), day = d.getDate();
+      if (action === 'day') {
+        currentShift = {
+          start: new Date(y, m, day,  6, 0, 0),
+          end:   new Date(y, m, day, 18, 0, 0),
+          label: 'Day'
+        };
+      } else {
+        currentShift = {
+          start: new Date(y, m, day,     18, 0, 0),
+          end:   new Date(y, m, day + 1,  6, 0, 0),
+          label: 'Night'
+        };
+      }
+    } else if (action === 'prev') {
+      // Step back 12h
+      currentShiftAnchor = new Date(
+        currentShift.start.getTime() - 12 * 3600 * 1000);
+      currentShift = shiftWindow(currentShift.label === 'Day' ? 'day' : 'night',
+                                  currentShiftAnchor);
+    } else if (action === 'next') {
+      currentShiftAnchor = new Date(
+        currentShift.end.getTime() + 0);  // anchor at end of current
+      // move to next shift of opposite type
+      const nextType = currentShift.label === 'Day' ? 'night' : 'day';
+      currentShift = shiftWindow(nextType, currentShiftAnchor);
+    }
+    buildShiftReport(currentShift);
+  });
+});
+
+document.getElementById('dlHtml').addEventListener('click', () => {
+  if (!currentShift) return;
+  const text = buildShiftTextReport(currentShift);
+  const html = buildShiftHtmlReport(currentShift, text);
+  const stamp = currentShift.start.toISOString().slice(0,16).replace(/[:T-]/g,'');
+  downloadFile(`shift-${currentShift.label.toLowerCase()}-${stamp}.html`,
+               html, 'text/html');
+});
+
+document.getElementById('dlText').addEventListener('click', () => {
+  if (!currentShift) return;
+  const text = buildShiftTextReport(currentShift);
+  const stamp = currentShift.start.toISOString().slice(0,16).replace(/[:T-]/g,'');
+  downloadFile(`shift-${currentShift.label.toLowerCase()}-${stamp}.txt`,
+               text, 'text/plain');
+});
+
+document.getElementById('copyText').addEventListener('click', async () => {
+  if (!currentShift) return;
+  const text = buildShiftTextReport(currentShift);
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('copyText');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  } catch (e) {
+    alert('Copy failed — use the Download plain text button instead.');
+  }
+});
 </script>
 </body>
 </html>
