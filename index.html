@@ -529,7 +529,7 @@ function render() {
   } else {
     [...events].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e => {
       const type = eventType(e.notification);
-            const notifId = (e.notification.match(/^\d+/) || [''])[0];
+            const notifId = (e.notification.match(/\b(\d{8})\b/) || [''])[1] || (e.order && (e.order.match(/\((\d+)\)/) || [])[1]) || '';
             const sapUrl = notifId
               ? `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`
               : '';
@@ -568,7 +568,7 @@ function render() {
       const icon = e.still_down ? '🔧' : t==='breakdown' ? '⚠️' : '✅';
       const tail = e.still_down ? ' · <span style="color:var(--red);">STILL DOWN</span>'
                                 : ' · <span style="color:var(--green);">closed</span>';
-      const notifId = (e.notification.match(/^\d+/) || [''])[0];
+      const notifId = (e.notification.match(/\b(\d{8})\b/) || [''])[1] || (e.order && (e.order.match(/\((\d+)\)/) || [])[1]) || '';
       const sapUrl = notifId
         ? `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`
         : '';
@@ -713,7 +713,8 @@ function renderGantt(events) {
       bar.textContent = e.still_down ? '🔧 ' + lbl : lbl;
       bar.title = `${e.notification}\nAsset: ${e.asset}\nStart: ${fmtDT(e.start)}\nEnd: ${e.end ? fmtDT(e.end) : 'STILL DOWN'}\nDuration: ${(e.duration_hrs||hrsBetween(e.start,e.end)).toFixed(1)} h\n\n${e.text}`;
       // Hyperlink → SAP notification detail page
-      const notifId = (e.notification.match(/^\d+/) || [''])[0];
+      // Notification IDs are 8 digits; first one in the title is the SAP notif number
+      const notifId = (e.notification.match(/\b(\d{8})\b/) || [''])[1] || (e.order && (e.order.match(/\((\d+)\)/) || [])[1]) || '';
       if (notifId) {
         const a = document.createElement('a');
         a.href = `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`;
