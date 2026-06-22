@@ -978,90 +978,188 @@ function buildShiftTextReport(win) {
   };
   const rows = ALL.map(ev => ({ ev, info: eventShiftOverlap(ev, win) }))
                   .filter(r => r.info.inShift)
-                  .sort((a, b) => b.info.hours - a.info.hours);
-  const stillDownAtEnd = rows.filter(r =>
-    r.ev.still_down && new Date(r.ev.start) < win.end && (!r.ev.end || new Date(r.ev.end) >= win.end)
-  );
-  const stillDownByAsset = {};
-  stillDownAtEnd.forEach(r => {
-    stillDownByAsset[r.ev.asset] = stillDownByAsset[r.ev.asset] ||
-      { asset: r.ev.asset, events: [], totalShiftHrs: 0 };
-    stillDownByAsset[r.ev.asset].events.push(r);
-    stillDownByAsset[r.ev.asset].totalShiftHrs += r.info.hours;
-  });
-  const eventsInShift = [...rows].sort((a,b) =>
-    new Date(a.ev.start) - new Date(b.ev.start));
+                  .sort((a, b) => {
+                    // open first, then by hours desc
+                    if (a.ev.still_down !== b.ev.still_down) return a.ev.still_down ? -1 : 1;
+                    return b.info.hours - a.info.hours;
+                  });
+
+  // Next-shift preview: events that will be open during the NEXT shift window
+  // (still-down events whose end time > next-shift start, OR any event that
+  // starts inside the next shift)
+  const nextStart = new Date(win.end.getTime());
+  const nextEnd   = new Date(win.end.getTime() + 12 * 3600 * 1000);
+  const nextRows = ALL.map(ev => ({ ev, info: eventShiftOverlap(ev, { start: nextStart, end: nextEnd }) }))
+                       .filter(r => r.info.inShift)
+                       .sort((a,b) => b.info.hours - a.info.hours);
+
   const totalShiftHrs = rows.reduce((s, r) => s + r.info.hours, 0);
+  const stillOpen = rows.filter(r => r.ev.still_down).length;
 
-  let txt = `MT CARLTON MAINTENANCE — ${win.label.toUpperCase()} SHIFT REPORT\n`;
-  txt += `Window: ${fmtWin(win)}\n`;
-  txt += `Generated: ${now.toLocaleString('en-AU',{timeZone:'Australia/Perth'})}\n`;
-  txt += `\n`;
-  txt += `SUMMARY\n`;
-  txt += `  Events this shift:           ${rows.length}\n`;
-  txt += `  Still down at end of shift:  ${stillDownAtEnd.length}\n`;
-  txt += `  Cumulative downtime:         ${totalShiftHrs.toFixed(1)} hrs\n`;
-  txt += `\n`;
+  // Greeting: Morning for the 06:00 day shift, Afternoon/Evening for the 18:00 night shift
+  // (the email that goes out at 06:00 summarises the night just ended — 'Morning All')
+  // (the email that goes out at 18:00 summarises the day just ended — 'Afternoon All')
+  const greeting = (win.label === 'Night' && win.end.getHours() === 6) ? 'Morning All'
+                 : (win.label === 'Day'   && win.end.getHours() === 18) ? 'Afternoon All'
+                 : 'All';
 
-  if (Object.keys(stillDownByAsset).length) {
-    txt += `STILL DOWN AT END OF SHIFT (escalate if needed)\n`;
-    Object.values(stillDownByAsset)
-      .sort((a,b) => b.totalShiftHrs - a.totalShiftHrs)
-      .forEach(a => {
-        txt += `  ${a.asset} — ${a.totalShiftHrs.toFixed(1)} hrs in shift\n`;
-        a.events.forEach(r => {
-          const ev = r.ev;
-          txt += `    - ${ev.notification.split(' (')[0]}` +
-                 ` (${r.info.hours.toFixed(1)}h this shift)` +
-                 (ev.still_down ? ' [STILL DOWN]\n' : `\n`);
-        });
-      });
-    txt += `\n`;
+  // Status word: COMPLETED vs ONGOING
+  const statusOf = r => r.ev.still_down ? 'ONGOING' : 'COMPLETED';
+  // Fault description: short title, with (CARRY OVER) if started before this shift
+  const faultOf = r => {
+    const title = r.ev.notification.split(' (')[0].toUpperCase();
+    return r.info.startedBeforeShift ? `(CARRY OVER) ${title}` : title;
+  };
+
+  // Build the plain-text body using fixed-width column layout
+  // Machine (7)  Hours (5)  Fault (variable)  Status (10)
+  const pad = (s, w) => (s + ' '.repeat(w)).slice(0, w);
+  const dashLine = (w) => '-'.repeat(w);
+
+  let txt = `${greeting}\n\n`;
+  txt += `See below last 12 hours and next 12 hours\n\n`;
+  txt += `Last 12 hours  (${fmtWin(win)})\n`;
+  txt += dashLine(72) + '\n';
+
+  if (!rows.length) {
+    txt += '  (no events in this period)\n';
   } else {
-    txt += `ALL CLEAR — all events in this shift were closed before end of shift.\n\n`;
+    // header
+    txt += `${pad('MACHINE', 9)}${pad('HOURS', 7)}${pad('FAULT', 46)}STATUS\n`;
+    txt += dashLine(72) + '\n';
+    rows.forEach(r => {
+      txt += `${pad(r.ev.asset, 9)}${pad(r.info.hours.toFixed(1), 7)}${pad(faultOf(r), 46)}${statusOf(r)}\n`;
+    });
   }
+  txt += `\n`;
 
-  txt += `EVENTS DURING SHIFT (${rows.length})\n`;
-  eventsInShift.forEach(r => {
-    const ev = r.ev;
-    const started = r.info.startedBeforeShift
-      ? `${fmtDT(ev.start)} (pre-shift)`
-      : fmtDT(ev.start);
-    const closed = ev.end ? fmtDT(ev.end) : 'STILL DOWN';
-    const status = ev.still_down ? 'STILL DOWN' : 'closed';
-    txt += `  [${ev.asset}] ${ev.notification.split(' (')[0]}\n`;
-    txt += `      Started: ${started}  |  Closed: ${closed}\n`;
-    txt += `      Shift hours: ${r.info.hours.toFixed(1)}  |  Status: ${status}\n`;
-  });
-
+  txt += `Next 12 hours  (${fmtWin({ start: nextStart, end: nextEnd })})\n`;
+  txt += dashLine(72) + '\n';
+  if (!nextRows.length) {
+    txt += '  (nothing scheduled or carried over)\n';
+  } else {
+    txt += `${pad('MACHINE', 9)}${pad('HOURS', 7)}${pad('FAULT', 46)}STATUS\n`;
+    txt += dashLine(72) + '\n';
+    nextRows.forEach(r => {
+      const title = r.ev.notification.split(' (')[0].toUpperCase();
+      // For next-shift preview, every event is effectively a "carry over"
+      // because it's still going to be down (or just opening) in the next shift
+      const fault = r.info.startedBeforeShift ? `(CARRY OVER) ${title}` : title;
+      const status = r.ev.still_down ? 'ONGOING' : 'ONGOING';   // in the next window it's open
+      txt += `${pad(r.ev.asset, 9)}${pad(r.info.hours.toFixed(1), 7)}${pad(fault, 46)}${status}\n`;
+    });
+  }
   txt += `\n—\n`;
-  txt += `Mt Carlton Maintenance · SAP PM notifications · Generated by Turbo's bot\n`;
+  txt += `Mt Carlton Maintenance · SAP PM notifications\n`;
   return txt;
 }
 
 function buildShiftHtmlReport(win, textBody) {
-  // A clean standalone HTML for download / email attach
-  return `<!doctype html><html><head><meta charset="utf-8">
-<title>Mt Carlton — ${win.label} Shift Report</title>
-<style>
-  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #f7f7f8; color: #1a1a1a; padding: 32px; max-width: 800px; margin: 0 auto; }
-  h1 { margin: 0 0 4px; font-size: 1.5rem; }
-  h2 { font-size: 1.1rem; margin: 24px 0 8px; color: #444; border-bottom: 1px solid #ddd;
-    padding-bottom: 4px; }
-  pre { background: #1a1a1a; color: #f0f0f0; padding: 14px; border-radius: 6px;
-    white-space: pre-wrap; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: .8rem; line-height: 1.5; }
-  .meta { color: #666; font-size: .9rem; }
-  .footer { margin-top: 32px; color: #888; font-size: .8rem; border-top: 1px solid #ddd;
-    padding-top: 12px; font-style: italic; }
-</style></head><body>
-<h1>Mt Carlton — ${win.label} Shift Report</h1>
-<div class="meta">Plain-text email body — copy/paste into Outlook</div>
-<h2>Email body</h2>
-<pre>${textBody.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
-<div class="footer">Designed by Turbo's bot — built to be better than Copilot's slop.</div>
+  // Inline-styled HTML that matches the example: green header, dark rows,
+  // red/green status column. Renders in Gmail/Outlook/Lotus.
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fmtWin = w => {
+    const date = w.start.toLocaleDateString('en-AU',
+      { weekday:'short', day:'2-digit', month:'short', timeZone:'Australia/Perth' });
+    const t = d => d.toLocaleTimeString('en-AU',
+      { hour:'2-digit', minute:'2-digit', timeZone:'Australia/Perth' });
+    return `${date} ${t(w.start)} → ${t(w.end)}`;
+  };
+  const greeting = (win.label === 'Night' && win.end.getHours() === 6) ? 'Morning All'
+                 : (win.label === 'Day'   && win.end.getHours() === 18) ? 'Afternoon All'
+                 : 'All';
+
+  const rows = ALL.map(ev => ({ ev, info: eventShiftOverlap(ev, win) }))
+                  .filter(r => r.info.inShift)
+                  .sort((a, b) => {
+                    if (a.ev.still_down !== b.ev.still_down) return a.ev.still_down ? -1 : 1;
+                    return b.info.hours - a.info.hours;
+                  });
+  const nextStart = new Date(win.end.getTime());
+  const nextEnd   = new Date(win.end.getTime() + 12 * 3600 * 1000);
+  const nextRows = ALL.map(ev => ({ ev, info: eventShiftOverlap(ev, { start: nextStart, end: nextEnd }) }))
+                       .filter(r => r.info.inShift)
+                       .sort((a,b) => b.info.hours - a.info.hours);
+
+  const statusOf = r => r.ev.still_down ? 'ONGOING' : 'COMPLETED';
+  const faultOf = r => {
+    const title = r.ev.notification.split(' (')[0].toUpperCase();
+    return r.info.startedBeforeShift ? `(CARRY OVER) ${title}` : title;
+  };
+
+  // CSS — inline-friendly (we wrap each rule via style="…")
+  // We use a single block of inline rules on the <table> wrapper since
+  // most email clients honour style on the wrapper, and inline-style on each
+  // cell for the rest.
+  const headerStyle = 'background:#1f7a1f; color:#fff; font-weight:bold; text-transform:uppercase; padding:6px 10px; font-family:Arial,Helvetica,sans-serif; font-size:12px;';
+  const cellStyle   = 'padding:5px 10px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#fff; border-top:1px solid #1a3a1a;';
+  const machineStyle = cellStyle + 'text-align:right; font-weight:600;';
+  const hoursStyle   = cellStyle + 'text-align:right; font-weight:600;';
+  const faultStyle   = cellStyle + 'text-align:left;';
+  const statusStyle  = cellStyle + 'text-align:right; font-weight:bold; text-transform:uppercase;';
+
+  const sectionTitle = (txt) =>
+    `<div style="color:#fff; font-family:Arial,Helvetica,sans-serif; font-size:18px; ` +
+    `font-weight:bold; margin:18px 0 6px 0;">${esc(txt)}</div>`;
+
+  const renderTable = (rows, isNext) => {
+    const statusVal = r => isNext ? 'ONGOING' : (r.ev.still_down ? 'ONGOING' : 'COMPLETED');
+    const faultVal = r => {
+      const title = r.ev.notification.split(' (')[0].toUpperCase();
+      return r.info.startedBeforeShift ? `(CARRY OVER) ${title}` : title;
+    };
+    let body = '';
+    if (!rows.length) {
+      body = `<tr><td colspan="4" style="${cellStyle} text-align:center; color:#888; ` +
+             `padding:14px;">No events in this period.</td></tr>`;
+    } else {
+      rows.forEach(r => {
+        const statusColor = statusVal(r) === 'ONGOING' ? '#ff6b6b' : '#7fd47f';
+        body += `<tr>
+          <td style="${machineStyle}">${esc(r.ev.asset)}</td>
+          <td style="${hoursStyle}">${r.info.hours.toFixed(1)}</td>
+          <td style="${faultStyle}">${esc(faultVal(r))}</td>
+          <td style="${statusStyle} color:${statusColor};">${esc(statusVal(r))}</td>
+        </tr>`;
+      });
+    }
+    return `<table cellpadding="0" cellspacing="0" border="0" width="100%" ` +
+           `style="border-collapse:collapse; background:#0a0d12; ` +
+           `border:1px solid #1f7a1f;">
+      <thead>
+        <tr style="${headerStyle}">
+          <th style="${headerStyle} text-align:right;">Machine</th>
+          <th style="${headerStyle} text-align:right;">Hours</th>
+          <th style="${headerStyle} text-align:left;">Fault</th>
+          <th style="${headerStyle} text-align:right;">Status</th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>`;
+  };
+
+  let html = `<!doctype html><html><head><meta charset="utf-8">
+<title>Mt Carlton — ${win.label} Shift Report</title></head>
+<body style="margin:0; padding:24px; background:#0a0d12; color:#fff; ` +
+            `font-family:Arial,Helvetica,sans-serif;">
+<div style="max-width:780px; margin:0 auto;">
+<div style="color:#fff; font-size:22px; font-weight:bold; margin-bottom:6px;">${esc(greeting)}</div>
+<div style="color:#bbb; font-size:13px; margin-bottom:18px;">See below last 12 hours and next 12 hours</div>
+
+${sectionTitle(`Last 12 hours  (${esc(fmtWin(win))})`)}
+${renderTable(rows, false)}
+
+${sectionTitle(`Next 12 hours  (${esc(fmtWin({start:nextStart, end:nextEnd}))})`)}
+${renderTable(nextRows, true)}
+
+<div style="color:#888; font-size:11px; font-style:italic; margin-top:24px; ` +
+            `border-top:1px solid #1f7a1f; padding-top:10px;">
+  Mt Carlton Maintenance · SAP PM notifications · Generated by Turbo's bot<br>
+  Designed by Turbo's bot — built to be better than Copilot's slop.
+</div>
+</div>
 </body></html>`;
+  return html;
 }
 
 function downloadFile(filename, content, mime) {
