@@ -101,6 +101,14 @@
   .filter-status { font-size:.78rem; color:var(--muted); margin-left:6px; }
   .filters .shift-btn { background: var(--purple); color: #fff;
     border-color: var(--purple); font-weight:600; margin-left:auto; }
+  /* Gantt control buttons (view tabs + zoom) */
+  .gantt-tab, .gantt-zoom { background: var(--panel-2); border:1px solid var(--line);
+    color: var(--text); padding: 5px 10px; border-radius: 6px; font-size:.78rem;
+    cursor: pointer; transition: all .15s; font-family: inherit; }
+  .gantt-tab:hover, .gantt-zoom:hover { border-color: var(--amber); }
+  .gantt-tab.active, .gantt-zoom.active { background: var(--amber); color: #0a0d12;
+    border-color: var(--amber); font-weight: 600; }
+  .panel-head h3 { font-size: 1rem; }
   .filters .shift-btn:hover { filter: brightness(1.15); border-color: var(--purple); }
   .shift-tab { background: var(--panel-2); border:1px solid var(--line);
     color: var(--text); padding: 6px 12px; border-radius: 6px; font-size:.78rem;
@@ -302,7 +310,20 @@
   <div class="grid" style="margin-top:16px;">
     <div class="col-12">
       <div class="panel">
-        <h3>Timeline — Malfunctions per Asset</h3>
+        <div class="panel-head" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <h3 style="margin:0;">Timeline — Malfunctions per Asset</h3>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+            <span class="lbl" style="color:var(--muted); font-size:.72rem; margin-right:2px;">VIEW:</span>
+            <button class="gantt-tab active" data-gview="all">All Fleet</button>
+            <button class="gantt-tab" data-gview="heavy">Heavy (TD/LO/DR)</button>
+            <button class="gantt-tab" data-gview="lv">Light (LV)</button>
+            <div class="sep" style="height:18px; border-left:1px solid var(--line); margin:0 4px;"></div>
+            <span class="lbl" style="color:var(--muted); font-size:.72rem; margin-right:2px;">ZOOM:</span>
+            <button class="gantt-zoom active" data-gzoom="days">Days</button>
+            <button class="gantt-zoom" data-gzoom="24h">Last 24h</button>
+            <button class="gantt-zoom" data-gzoom="7d">7d</button>
+          </div>
+        </div>
         <div class="gantt-wrap"><div class="gantt" id="gantt"></div></div>
         <div class="legend">
           <div class="item"><span class="swatch" style="background:var(--blue)"></span>Commissioning</div>
@@ -321,7 +342,44 @@
   </div>
 
   <div class="grid" style="margin-top:16px;">
-    <div class="col-8"><div class="panel"><h3>All Notifications</h3><div style="overflow-x:auto;"><table id="tbl"><thead><tr><th>Status</th><th>Asset</th><th>Notification</th><th>Start</th><th>End</th><th>Hrs</th><th>Order</th></tr></thead><tbody></tbody></table></div></div></div>
+    <div class="col-8"><div class="panel">
+      <div class="panel-head" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <h3 style="margin:0;">All Notifications</h3>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <input type="search" id="tblSearch" placeholder="🔍 Search…" style="background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:5px 10px; border-radius:6px; font-size:.78rem; min-width:160px;" />
+          <select id="tblFleet" style="background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:5px 8px; border-radius:6px; font-size:.78rem;">
+            <option value="">All fleets</option>
+            <option value="Trucks">Trucks</option>
+            <option value="Loaders">Loaders</option>
+            <option value="Drills">Drills</option>
+            <option value="Light Vehicles">Light Vehicles</option>
+            <option value="Other">Other</option>
+          </select>
+          <select id="tblStatus" style="background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:5px 8px; border-radius:6px; font-size:.78rem;">
+            <option value="">All status</option>
+            <option value="down">Still down</option>
+            <option value="breakdown">Breakdown</option>
+            <option value="maintenance">Repair</option>
+            <option value="commissioning">Commissioning</option>
+          </select>
+          <button id="tblReset" style="background:var(--panel-2); border:1px solid var(--line); color:var(--muted); padding:5px 10px; border-radius:6px; font-size:.78rem; cursor:pointer; display:none;">Reset</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;"><table id="tbl">
+        <thead><tr>
+          <th data-sort="status"   style="cursor:pointer; user-select:none;">Status <span class="sort-ind"></span></th>
+          <th data-sort="asset"    style="cursor:pointer; user-select:none;">Asset <span class="sort-ind"></span></th>
+          <th data-sort="notif"    style="cursor:pointer; user-select:none;">Notification <span class="sort-ind"></span></th>
+          <th data-sort="fleet"    style="cursor:pointer; user-select:none;">Fleet <span class="sort-ind"></span></th>
+          <th data-sort="start"    style="cursor:pointer; user-select:none;">Start <span class="sort-ind"></span></th>
+          <th data-sort="end"      style="cursor:pointer; user-select:none;">End <span class="sort-ind"></span></th>
+          <th data-sort="duration" style="cursor:pointer; user-select:none;">Hrs <span class="sort-ind"></span></th>
+          <th data-sort="order"    style="cursor:pointer; user-select:none;">Order <span class="sort-ind"></span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div id="tblStatusText" style="padding:8px 4px 0; font-size:.78rem; color:var(--muted);"></div>
+    </div></div>
     <div class="col-4"><div class="panel"><h3>Activity Feed</h3><div id="feed" style="font-size:.85rem; line-height:1.5;"></div></div></div>
   </div>
 
@@ -389,6 +447,9 @@ const ALL = DATA.events;
 let filterMode = 'all';   // 'all' | '7' | '14' | '30' | 'custom'
 let customFrom = null;    // 'YYYY-MM-DD'
 let customTo   = null;    // 'YYYY-MM-DD'
+let ganttView  = 'all';   // 'all' | 'heavy' | 'lv'
+let ganttZoom  = 'days';  // 'days' | '24h' | '7d'
+let tblSort    = { key: 'start', dir: 'desc' };  // table sort state
 
 function filteredEvents() {
   let from, to;
@@ -417,6 +478,21 @@ function filteredEvents() {
 function buildAxis(rangeStart, rangeEnd) {
   const ticks = [];
   const totalDays = Math.max(1, Math.round((rangeEnd - rangeStart) / 86400000));
+  const totalMs = rangeEnd - rangeStart;
+  const totalHours = Math.round(totalMs / 3600000);
+
+  // 24h window (≤ 36h): hourly ticks, 2h stride
+  if (totalHours <= 36) {
+    const cur = new Date(rangeStart);
+    cur.setMinutes(0, 0, 0);
+    const stride = 2;
+    while (cur <= rangeEnd) {
+      ticks.push({ date: new Date(cur), monthMajor: false });
+      cur.setHours(cur.getHours() + stride);
+    }
+    return { ticks, stride, totalDays, totalHours, mode: 'hours' };
+  }
+
   // Heuristic: pick tick stride so we show ~6-12 labels total
   let stride = 1;
   if (totalDays > 14)  stride = 2;
@@ -434,7 +510,7 @@ function buildAxis(rangeStart, rangeEnd) {
     ticks.push({ date: new Date(cur), monthMajor });
     cur.setDate(cur.getDate() + stride);
   }
-  return { ticks, stride, totalDays };
+  return { ticks, stride, totalDays, totalHours, mode: totalDays <= 10 ? '7d' : 'days' };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -531,7 +607,14 @@ function render() {
   }
 
   // ── GANTT ──
-  renderGantt(events);
+  // Apply view filter (LV vs Heavy vs All) on top of date filter
+  let ganttEvents = events;
+  if (ganttView === 'heavy') {
+    ganttEvents = ganttEvents.filter(e => !e.asset.startsWith('LV'));
+  } else if (ganttView === 'lv') {
+    ganttEvents = ganttEvents.filter(e => e.asset.startsWith('LV'));
+  }
+  renderGantt(ganttEvents);
 
   // ── Fleet chart ──
   const fleetAgg = {};
@@ -564,34 +647,106 @@ function render() {
   // ── Table ──
   const tbody = document.querySelector('#tbl tbody');
   tbody.innerHTML = '';
-  if (!events.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--muted);">No notifications in this range.</td></tr>';
+  // Apply table-local filters (search + fleet + status)
+  const searchTxt = (document.getElementById('tblSearch')?.value || '').toLowerCase().trim();
+  const fleetPick = document.getElementById('tblFleet')?.value || '';
+  const statusPick = document.getElementById('tblStatus')?.value || '';
+  let tblEvents = events;
+  if (searchTxt) {
+    tblEvents = tblEvents.filter(e => {
+      const hay = [e.asset, e.notification, e.text, e.order, fleetClass(e.asset)]
+        .filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(searchTxt);
+    });
+  }
+  if (fleetPick) tblEvents = tblEvents.filter(e => fleetClass(e.asset) === fleetPick);
+  if (statusPick) {
+    tblEvents = tblEvents.filter(e => {
+      if (statusPick === 'down') return e.still_down;
+      if (statusPick === 'breakdown') return !e.still_down && eventType(e.notification) === 'breakdown';
+      if (statusPick === 'maintenance') return !e.still_down && e.notification.includes('ORDER');
+      if (statusPick === 'commissioning') return !e.still_down &&
+        eventType(e.notification) === 'commissioning';
+      return true;
+    });
+  }
+  // Apply sort
+  const sortKey = tblSort.key;
+  const sortDir = tblSort.dir;
+  const sortVal = (e, k) => {
+    if (k === 'status') {
+      if (e.still_down) return 0;
+      const t = eventType(e.notification);
+      return t === 'breakdown' ? 1 : t === 'maintenance' ? 2 : 3;
+    }
+    if (k === 'asset')    return e.asset || '';
+    if (k === 'notif')    return e.notification.split(' (')[0].toLowerCase();
+    if (k === 'fleet')    return fleetClass(e.asset);
+    if (k === 'start')    return new Date(e.start).getTime();
+    if (k === 'end')      return e.end ? new Date(e.end).getTime() : 0;
+    if (k === 'duration') return e.duration_hrs || hrsBetween(e.start, e.end) || 0;
+    if (k === 'order')    return (e.order || '').toLowerCase();
+    return '';
+  };
+  tblEvents = [...tblEvents].sort((a, b) => {
+    const va = sortVal(a, sortKey);
+    const vb = sortVal(b, sortKey);
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+  // Update sort indicators in the header
+  document.querySelectorAll('#tbl th[data-sort]').forEach(th => {
+    const ind = th.querySelector('.sort-ind');
+    if (!ind) return;
+    if (th.dataset.sort === sortKey) {
+      ind.textContent = sortDir === 'asc' ? '▲' : '▼';
+      th.style.color = 'var(--amber)';
+    } else {
+      ind.textContent = '';
+      th.style.color = '';
+    }
+  });
+  // Update reset button visibility + status text
+  const hasFilter = searchTxt || fleetPick || statusPick;
+  const resetBtn = document.getElementById('tblReset');
+  if (resetBtn) resetBtn.style.display = hasFilter ? 'inline-block' : 'none';
+  const statusText = document.getElementById('tblStatusText');
+  if (statusText) {
+    statusText.textContent = hasFilter
+      ? `Showing ${tblEvents.length} of ${events.length} in range`
+      : `${tblEvents.length} notification${tblEvents.length === 1 ? '' : 's'} in range`;
+  }
+  if (!tblEvents.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted);">No notifications match the current filters.</td></tr>';
   } else {
-    [...events].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e => {
+    tblEvents.forEach(e => {
       const type = eventType(e.notification);
-            const notifId = (e.notification.match(/\b(\d{8})\b/) || [''])[1] || (e.order && (e.order.match(/\((\d+)\)/) || [])[1]) || '';
-            const sapUrl = notifId
-              ? `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`
-              : '';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${e.still_down
-                      ? '<span class="badge still">Still down</span>'
-                      : (type === 'breakdown'
-                          ? '<span class="badge breakdown">Breakdown</span>'
-                          : (e.notification.includes('ORDER')
-                              ? '<span class="badge maintenance">Repair</span>'
-                              : '<span class="badge commissioning">Commissioning</span>'))}</td>
-              <td><strong>${e.asset}</strong></td>
-              <td>${sapUrl
-                      ? `<a href="${sapUrl}" target="_blank" rel="noopener noreferrer" title="Open in SAP S/4HANA" style="color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);">${e.notification.split(' (')[0]}</a>`
-                      : e.notification.split(' (')[0]}<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">${(e.text||'').slice(0,90)}…</div></td>
-              <td>${fmtDT(e.start)}</td>
-              <td>${e.end ? fmtDT(e.end) : '<span style="color:var(--red);">— open —</span>'}</td>
-              <td>${(e.duration_hrs || hrsBetween(e.start, e.end)).toFixed(1)}</td>
-              <td style="color:var(--muted);font-size:.78rem;">${e.order || '—'}</td>
-            `;
-            tbody.appendChild(tr);
+      const fleet = fleetClass(e.asset);
+      const notifId = (e.notification.match(/\b(\d{8})\b/) || [''])[1] || (e.order && (e.order.match(/\((\d+)\)/) || [])[1]) || '';
+      const sapUrl = notifId
+        ? `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`
+        : '';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${e.still_down
+                ? '<span class="badge still">Still down</span>'
+                : (type === 'breakdown'
+                    ? '<span class="badge breakdown">Breakdown</span>'
+                    : (e.notification.includes('ORDER')
+                        ? '<span class="badge maintenance">Repair</span>'
+                        : '<span class="badge commissioning">Commissioning</span>'))}</td>
+        <td><strong>${e.asset}</strong></td>
+        <td>${sapUrl
+                ? `<a href="${sapUrl}" target="_blank" rel="noopener noreferrer" title="Open in SAP S/4HANA" style="color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);">${e.notification.split(' (')[0]}</a>`
+                : e.notification.split(' (')[0]}<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">${(e.text||'').slice(0,90)}…</div></td>
+        <td><span class="fleet-tag" style="color:${fleetColor(fleet)};">${fleet}</span></td>
+        <td>${fmtDT(e.start)}</td>
+        <td>${e.end ? fmtDT(e.end) : '<span style="color:var(--red);">— open —</span>'}</td>
+        <td>${(e.duration_hrs || hrsBetween(e.start, e.end)).toFixed(1)}</td>
+        <td style="color:var(--muted);font-size:.78rem;">${e.order || '—'}</td>
+      `;
+      tbody.appendChild(tr);
     });
   }
 
@@ -673,24 +828,46 @@ function renderGantt(events) {
   // range
   let minT = Math.min(...events.map(e => new Date(e.start).getTime()));
   let maxT = Math.max(...events.map(e => new Date(e.end || now).getTime()));
-  // Snap to day boundaries for cleaner axis labels
-  const axisStart = startOfDay(new Date(minT));
-  const axisEnd   = startOfDay(new Date(maxT));
-  // Extend end by 1 day if maxT is within today (so today has a tick)
-  const extendedEnd = (axisEnd.getTime() < startOfDay(now).getTime())
-    ? startOfDay(now)
-    : (maxT > axisEnd.getTime() ? new Date(axisEnd.getTime() + 86400000) : axisEnd);
-  const rangeStart = axisStart;
-  const rangeEnd   = extendedEnd;
-  const rangeMs    = rangeEnd - rangeStart;
+  let rangeStart, rangeEnd, rangeMs;
+  if (ganttZoom === '24h') {
+    // Last 24h ending at the latest event (or now), snapped to the hour
+    const endSnap = new Date(maxT);
+    endSnap.setMinutes(0, 0, 0);
+    endSnap.setHours(endSnap.getHours() + 1);
+    rangeEnd = endSnap;
+    rangeStart = new Date(endSnap.getTime() - 24 * 3600 * 1000);
+    rangeMs = rangeEnd - rangeStart;
+  } else if (ganttZoom === '7d') {
+    // Last 7 days, snapped to start-of-day
+    const endSnap = new Date(maxT);
+    endSnap.setHours(0, 0, 0, 0);
+    endSnap.setDate(endSnap.getDate() + 1);
+    rangeEnd = endSnap;
+    rangeStart = new Date(endSnap.getTime() - 7 * 86400000);
+    rangeMs = rangeEnd - rangeStart;
+  } else {
+    // Snap to day boundaries for cleaner axis labels
+    const axisStart = startOfDay(new Date(minT));
+    const axisEnd   = startOfDay(new Date(maxT));
+    // Extend end by 1 day if maxT is within today (so today has a tick)
+    const extendedEnd = (axisEnd.getTime() < startOfDay(now).getTime())
+      ? startOfDay(now)
+      : (maxT > axisEnd.getTime() ? new Date(axisEnd.getTime() + 86400000) : axisEnd);
+    rangeStart = axisStart;
+    rangeEnd   = extendedEnd;
+    rangeMs    = rangeEnd - rangeStart;
+  }
 
   // header row
   const h1 = document.createElement('div'); h1.className = 'gh axis-spacer'; h1.textContent = 'Asset';
   const h2 = document.createElement('div'); h2.className = 'gh axis'; h2.style.position = 'relative';
-  const { ticks, stride, totalDays } = buildAxis(rangeStart, rangeEnd);
-  h2.innerHTML = `<div style="position:absolute; top:4px; right:6px; font-size:.68rem; color:var(--muted);">
-    ${totalDays}d window · ticks every ${stride}d
-  </div>`;
+  const { ticks, stride, totalDays, mode: axisMode } = buildAxis(rangeStart, rangeEnd);
+  const axisLabel = axisMode === 'hours'
+    ? `24h window · ticks every ${stride}h`
+    : (axisMode === '7d'
+        ? `7d window · ticks every ${stride}d`
+        : `${totalDays}d window · ticks every ${stride}d`);
+  h2.innerHTML = `<div style="position:absolute; top:4px; right:6px; font-size:.68rem; color:var(--muted);">${axisLabel}</div>`;
   ganttEl.appendChild(h1);
   ganttEl.appendChild(h2);
 
@@ -704,8 +881,15 @@ function renderGantt(events) {
     const tick = document.createElement('div');
     tick.className = 'tick' + (t.monthMajor ? ' month-major' : '');
     tick.style.left = left + '%';
-    tick.innerHTML = `<div class="day">${t.date.getDate()}</div>
-                      <div class="dow">${dow[t.date.getDay()]}</div>`;
+    if (axisMode === 'hours') {
+      // Hourly tick: show hour-of-day, no day-of-week (axis is 24h wide)
+      const hr = t.date.getHours();
+      const hh = String(hr).padStart(2, '0') + ':00';
+      tick.innerHTML = `<div class="day" style="font-size:.78rem;">${hh}</div>`;
+    } else {
+      tick.innerHTML = `<div class="day">${t.date.getDate()}</div>
+                        <div class="dow">${dow[t.date.getDay()]}</div>`;
+    }
     if (t.monthMajor) {
       const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const tag = document.createElement('div');
@@ -751,7 +935,20 @@ function renderGantt(events) {
       bar.style.width = w + '%';
       const lbl = (e.notification.split(' (')[0] || '').slice(0, 28);
       bar.textContent = e.still_down ? '🔧 ' + lbl : lbl;
-      bar.title = `${e.notification}\nAsset: ${e.asset}\nStart: ${fmtDT(e.start)}\nEnd: ${e.end ? fmtDT(e.end) : 'STILL DOWN'}\nDuration: ${(e.duration_hrs||hrsBetween(e.start,e.end)).toFixed(1)} h\n\n${e.text}`;
+      // Build the rich tooltip that shows on hover (kept on the bar so it's
+      // visible regardless of whether the inner <a> is the actual hover target)
+      const tooltip = [
+        e.notification,
+        `Asset: ${e.asset}`,
+        `Start: ${fmtDT(e.start)}`,
+        `End: ${e.end ? fmtDT(e.end) : 'STILL DOWN'}`,
+        `Duration: ${(e.duration_hrs||hrsBetween(e.start,e.end)).toFixed(1)} h`,
+        '',
+        e.text || '(no log)',
+        '',
+        'Click to open in SAP S/4HANA'
+      ].join('\n');
+      bar.title = tooltip;
       // Hyperlink → SAP notification detail page
       // Notification IDs are 8 digits; first one in the title is the SAP notif number
       const notifId = (e.notification.match(/\b(\d{8})\b/) || [''])[1] || (e.order && (e.order.match(/\((\d+)\)/) || [])[1]) || '';
@@ -760,8 +957,9 @@ function renderGantt(events) {
         a.href = `https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-change?MaintenanceNotification=${notifId}`;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        a.title = `Open notification ${notifId} in SAP S/4HANA`;
-        a.style.cssText = 'position:absolute; inset:0; z-index:2; text-decoration:none;';
+        a.title = tooltip;  // same tooltip on the anchor so hover-from-anchor also shows it
+        a.setAttribute('aria-label', `Open notification ${notifId} in SAP S/4HANA`);
+        a.style.cssText = 'position:absolute; inset:0; z-index:2; text-decoration:none; cursor:pointer;';
         bar.appendChild(a);
       }
       lane.appendChild(bar);
@@ -808,6 +1006,57 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   document.getElementById('dateFrom').value = '';
   document.getElementById('dateTo').value = '';
   render();
+});
+
+// Gantt view tabs (All / Heavy / LV)
+document.querySelectorAll('button[data-gview]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    ganttView = btn.dataset.gview;
+    document.querySelectorAll('button[data-gview]').forEach(b => {
+      b.classList.toggle('active', b === btn);
+    });
+    render();
+  });
+});
+
+// Gantt zoom buttons (Days / 24h / 7d)
+document.querySelectorAll('button[data-gzoom]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    ganttZoom = btn.dataset.gzoom;
+    document.querySelectorAll('button[data-gzoom]').forEach(b => {
+      b.classList.toggle('active', b === btn);
+    });
+    render();
+  });
+});
+
+// Table controls: search + filters + sortable columns
+const tblSearchEl = document.getElementById('tblSearch');
+if (tblSearchEl) tblSearchEl.addEventListener('input', () => render());
+const tblFleetEl = document.getElementById('tblFleet');
+if (tblFleetEl) tblFleetEl.addEventListener('change', () => render());
+const tblStatusEl = document.getElementById('tblStatus');
+if (tblStatusEl) tblStatusEl.addEventListener('change', () => render());
+const tblResetEl = document.getElementById('tblReset');
+if (tblResetEl) {
+  tblResetEl.addEventListener('click', () => {
+    if (tblSearchEl) tblSearchEl.value = '';
+    if (tblFleetEl)  tblFleetEl.value  = '';
+    if (tblStatusEl) tblStatusEl.value = '';
+    render();
+  });
+}
+document.querySelectorAll('#tbl th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (tblSort.key === k) {
+      tblSort.dir = tblSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      tblSort.key = k;
+      tblSort.dir = ['duration','start','end'].includes(k) ? 'desc' : 'asc';
+    }
+    render();
+  });
 });
 
 // Set date input bounds based on data
