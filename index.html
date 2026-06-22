@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Mt Carlton Maintenance Dashboard — Macmahon</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --bg: #0a0d12;
@@ -33,6 +34,35 @@
   .brand .title-block .sub { color: var(--muted); font-size: .82rem; }
   .brand .title-block .legend { color: var(--amber); font-size: .72rem;
     margin-top: 3px; font-weight: 500; }
+  .get-export { display:inline-flex; align-items:center; gap:6px;
+    background: var(--panel-2); border:1px solid var(--green);
+    color: var(--green); padding: 6px 12px; border-radius: 6px;
+    font-size: .78rem; font-weight: 600; text-decoration: none;
+    transition: all .15s; }
+  .get-export:hover { background: var(--green); color: #0a0d12; }
+
+  /* Drag-and-drop overlay */
+  #dropOverlay { display:none; position:fixed; inset:0;
+    background: rgba(245,158,11,.15); backdrop-filter: blur(2px);
+    z-index: 1000; pointer-events: none; }
+  #dropOverlay.active { display:flex; align-items:center; justify-content:center; }
+  #dropOverlay .box { background: var(--panel); border: 3px dashed var(--amber);
+    border-radius: 16px; padding: 40px 60px; text-align:center;
+    pointer-events:none; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+  #dropOverlay .box h2 { margin: 0 0 6px; color: var(--amber); font-size: 1.6rem; }
+  #dropOverlay .box p { color: var(--muted); margin: 0; font-size: .9rem; }
+  #dropZone { position: fixed; inset: 0; z-index: 999;
+    pointer-events: none; }
+  .toast { position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border:1px solid var(--green); color: var(--green);
+    padding: 14px 20px; border-radius: 8px; z-index: 1100;
+    font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+    animation: toast-in .3s ease; }
+  .toast.err { border-color: var(--red); color: var(--red); }
+  @keyframes toast-in { from { opacity:0; transform:translateY(8px); } }
+  .source-stamp { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+  .source-stamp button { background:none; border:none; color: var(--blue);
+    cursor:pointer; text-decoration:underline; font-size: .7rem; padding:0; }
   .status-pill { display:inline-flex; align-items:center; gap:6px;
     background: var(--panel-2); border:1px solid var(--line);
     padding: 4px 10px; border-radius: 999px; font-size:.78rem; color:var(--muted); }
@@ -183,11 +213,21 @@
         <h1>Mt Carlton Maintenance</h1>
         <div class="sub">SAP PM notifications · Live site view</div>
         <div class="legend">⚒️ On-site legend: Clarky</div>
+        <div class="source-stamp">
+          Data: <span id="dataSource">baked-in (latest deploy)</span> ·
+          <button id="resetSource" style="display:none;">reset</button>
+        </div>
       </div>
     </div>
-    <div class="status-pill">
-      <span class="pulse"></span>
-      <span id="rangeLabel">…</span>
+    <div style="display:flex; align-items:center; gap: 10px; flex-wrap: wrap;">
+      <a id="getExportBtn" class="get-export" href="https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-manage&/?sap-iapp-state=ASFRLMI40YWJXCV9WUV8W1RNSN1ZS5SUN4TFOLFW"
+         target="_blank" rel="noopener noreferrer">
+        ⬇ Get Export
+      </a>
+      <div class="status-pill">
+        <span class="pulse"></span>
+        <span id="rangeLabel">…</span>
+      </div>
     </div>
   </header>
 
@@ -1274,6 +1314,203 @@ document.getElementById('copyText').addEventListener('click', async () => {
   } catch (e) {
     alert('Copy failed — use the Download plain text button instead.');
   }
+});
+</script>
+
+<div id="dropOverlay"><div class="box">
+  <h2>📥 Drop the SAP export</h2>
+  <p>Release your <code>.xlsx</code> file to refresh the dashboard</p>
+</div></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Drag-and-drop + file picker to load fresh SAP PM exports at runtime
+const SAP_BASE_URL = 'https://my301631.s4hana.ondemand.com/ui#MaintenanceNotification-manage&/?sap-iapp-state=ASFRLMI40YWJXCV9WUV8W1RNSN1ZS5SUN4TFOLFW';
+
+function showToast(msg, isError = false) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (isError ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+// Excel serial / Date / string → ISO string.
+// SheetJS with `cellDates: true` returns JS Date objects for datetime cells.
+function excelSerialToISO(serial) {
+  if (serial == null || serial === '') return null;
+  if (serial instanceof Date) {
+    return isNaN(serial.getTime()) ? null : serial.toISOString();
+  }
+  if (typeof serial === 'string') {
+    const d = new Date(serial);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  if (typeof serial === 'number') {
+    // Excel: serial 1 = 1900-01-01 (with the 1900 leap-year bug → -25569)
+    const ms = Math.round((serial - 25569) * 86400 * 1000);
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  return null;
+}
+
+// Parse a SAPUI5 Export sheet (as AOA = array of arrays) into the events
+// array shape. Row 0 is the header row, data starts at row 1.
+// Columns (0-indexed):
+//   0 Notification, 1 Sort Field, 2 Malfunction Start, 3 Malfunction End,
+//   4 Breakdown Duration, 5 Long Text, 6 Created By, 7 Created On/At,
+//   8 Assigned Order
+function parseSapExportSheet(aoa) {
+  const rows = [];
+  if (!aoa || aoa.length < 2) return rows;
+  for (let r = 1; r < aoa.length; r++) {
+    const row = aoa[r];
+    if (!row) continue;
+    const notification = row[0];
+    const asset        = row[1];
+    const start        = row[2];
+    const end          = row[3];
+    const duration     = row[4];
+    const text         = row[5];
+    const createdBy    = row[6];
+    const createdOn    = row[7];
+    const order        = row[8];
+
+    if (!asset) continue;
+    const startISO = excelSerialToISO(start);
+    if (!startISO) continue;
+    const endISO = excelSerialToISO(end);
+
+    rows.push({
+      notification: notification || '',
+      asset: String(asset).trim(),
+      start: startISO,
+      end: endISO,
+      duration_hrs: (typeof duration === 'number') ? duration
+                  : (duration ? parseFloat(duration) : null),
+      text: (text || '').toString().replace(/\n/g, ' | '),
+      order: order || '',
+      created_by: createdBy || '',
+      created_on: excelSerialToISO(createdOn),
+      still_down: !endISO,
+    });
+  }
+  return rows;
+}
+
+// Replace ALL data + re-render. Used by drag/drop and by the manual file input.
+function replaceData(events, sourceLabel) {
+  if (!Array.isArray(events)) {
+    showToast('Could not parse any events from that file.', true);
+    return;
+  }
+  // Clear and refill the const ALL array (mutating contents, not the binding)
+  ALL.length = 0;
+  events.forEach(e => ALL.push(e));
+
+  // Recompute "now" — pin to latest event + 6h so still-down bars have room
+  if (events.length) {
+    const latest = events.reduce((m, e) => {
+      const t = new Date(e.start).getTime();
+      return t > m ? t : m;
+    }, 0);
+    const newNow = new Date(latest + 6 * 3600 * 1000);
+    // Mutate the Date object in place so all consumers see it
+    now.setTime(newNow.getTime());
+  }
+
+  // Reset filter to "all" so the user immediately sees the new data
+  filterMode = 'all';
+  customFrom = customTo = null;
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  document.querySelectorAll('#filters button[data-range]').forEach(b => {
+    b.classList.toggle('active', b.dataset.range === 'all');
+  });
+
+  // Update date input bounds
+  if (ALL.length) {
+    const allMin = ALL.reduce((m, e) => Math.min(m, new Date(e.start).getTime()), Infinity);
+    const allMax = ALL.reduce((m, e) => Math.max(m, new Date(e.end || now).getTime()), -Infinity);
+    const minD = dayKey(new Date(allMin));
+    const maxD = dayKey(new Date(allMax));
+    document.getElementById('dateFrom').min = minD;
+    document.getElementById('dateFrom').max = maxD;
+    document.getElementById('dateTo').min   = minD;
+    document.getElementById('dateTo').max   = maxD;
+  }
+
+  // Source label
+  document.getElementById('dataSource').textContent = sourceLabel || `uploaded ${new Date().toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'2-digit',minute:'2-digit'})}`;
+  document.getElementById('resetSource').style.display = 'inline';
+
+  // Re-render the whole dashboard
+  render();
+
+  // If shift modal is open, refresh its contents to the new data
+  const modal = document.getElementById('shiftModal');
+  if (modal && modal.style.display === 'block' && typeof currentShift !== 'undefined' && currentShift) {
+    buildShiftReport(currentShift);
+  }
+
+  showToast(`✓ Loaded ${events.length} event${events.length === 1 ? '' : 's'} from ${sourceLabel || 'file'}`);
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  if (!/\.xlsx?$/i.test(file.name)) {
+    showToast('Please drop a .xlsx file (SAP maintenance export).', true);
+    return;
+  }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    // Find the SAPUI5 Export sheet (case-insensitive)
+    const sheetName = wb.SheetNames.find(n => /sapui5/i.test(n)) || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    if (!ws) { showToast('No sheet found in the workbook.', true); return; }
+    // Convert to AOA (array of arrays) for uniform access
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+    if (!aoa.length) { showToast('Empty sheet.', true); return; }
+    // Drop the header row and feed to the parser
+    const events = parseSapExportSheet(aoa);
+    replaceData(events, file.name);
+  } catch (e) {
+    console.error('Drop/parse error:', e);
+    showToast('Failed to read file: ' + (e.message || e), true);
+  }
+}
+
+// Wire up the overlay + global drag/drop
+const overlay = document.getElementById('dropOverlay');
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => {
+  if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+  e.preventDefault();
+  dragDepth++;
+  overlay.classList.add('active');
+});
+window.addEventListener('dragover', (e) => {
+  if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+  e.preventDefault();
+});
+window.addEventListener('dragleave', (e) => {
+  if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+  dragDepth--;
+  if (dragDepth <= 0) { dragDepth = 0; overlay.classList.remove('active'); }
+});
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  overlay.classList.remove('active');
+  const file = e.dataTransfer?.files?.[0];
+  handleFile(file);
+});
+
+// Optional: hidden file input so users can click to browse if drag/drop fails
+document.getElementById('resetSource').addEventListener('click', () => {
+  location.reload();
 });
 </script>
 </body>
