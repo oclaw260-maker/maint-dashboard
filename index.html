@@ -24,7 +24,8 @@
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
   header { display:flex; justify-content:space-between; align-items:flex-end;
-    border-bottom: 1px solid var(--line); padding-bottom: 16px; margin-bottom: 16px; }
+    border-bottom: 1px solid var(--line); padding-bottom: 16px; margin-bottom: 16px;
+    flex-wrap: wrap; gap: 12px; }
   header h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -.02em; }
   header .sub { color: var(--muted); font-size: .9rem; }
   .status-pill { display:inline-flex; align-items:center; gap:6px;
@@ -41,6 +42,29 @@
     border:1px solid rgba(245,158,11,.3); border-radius: 10px; padding:14px 18px;
     margin-bottom: 20px; font-size:.95rem; }
   .insight strong { color: var(--amber); }
+
+  /* Filter bar */
+  .filters { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    margin-bottom: 16px; padding: 10px 12px; background: var(--panel);
+    border:1px solid var(--line); border-radius: 10px; }
+  .filters .lbl { color:var(--muted); font-size:.78rem;
+    text-transform:uppercase; letter-spacing:.05em; margin-right:4px; }
+  .filters button { background: var(--panel-2); border:1px solid var(--line);
+    color: var(--text); padding: 6px 12px; border-radius: 6px; font-size:.82rem;
+    cursor: pointer; transition: all .15s; }
+  .filters button:hover { border-color: var(--amber); }
+  .filters button.active { background: var(--amber); color: #0a0d12;
+    border-color: var(--amber); font-weight: 600; }
+  .filters .sep { width:1px; height:22px; background: var(--line); margin: 0 4px; }
+  .filters input[type="date"] { background: var(--panel-2); border:1px solid var(--line);
+    color: var(--text); padding: 6px 8px; border-radius: 6px; font-size:.82rem;
+    color-scheme: dark; }
+  .filters .custom-range { display:inline-flex; align-items:center; gap:6px;
+    color: var(--muted); font-size:.78rem; }
+  .filters .reset { margin-left:auto; color:var(--muted); }
+  .filters .reset:hover { color: var(--red); border-color: var(--red) !important; }
+  .filter-status { font-size:.78rem; color:var(--muted); margin-left:6px; }
+
   .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
   .col-3 { grid-column: span 3; }
   .col-4 { grid-column: span 4; }
@@ -69,11 +93,26 @@
   .gantt-wrap { overflow-x: auto; padding-bottom: 6px; }
   .gantt { display: grid; grid-template-columns: 90px 1fr; gap: 0;
     min-width: 760px; }
-  .gantt .gh, .gantt .gc { display:flex; align-items:center; }
-  .gantt .gh { background: var(--panel-2); border-bottom:1px solid var(--line);
-    padding: 4px 8px; font-size:.72rem; color:var(--muted); font-weight:600;
-    text-transform: uppercase; }
-  .gantt .gh.right { border-left:1px solid var(--line); }
+  .gantt .gh { background: var(--panel-2); padding: 4px 8px;
+    font-size:.72rem; color:var(--muted); font-weight:600;
+    text-transform: uppercase; border-bottom: 1px solid var(--line); }
+  .gantt .axis-spacer { border-right: 1px solid var(--line); }
+  .gantt .axis { position:relative; height: 28px; border-bottom: 1px solid var(--line);
+    border-left: 1px solid var(--line); }
+  .gantt .tick { position:absolute; top:0; bottom:0;
+    border-left:1px solid var(--line); }
+  .gantt .tick .day { position:absolute; top: 4px; left: 4px;
+    font-size:.68rem; color: var(--text); font-weight:600; }
+  .gantt .tick .dow { position:absolute; bottom: 4px; left: 4px;
+    font-size:.6rem; color: var(--muted); text-transform:uppercase; }
+  .gantt .tick.month-major { background: rgba(245,158,11,.04);
+    border-left-color: rgba(245,158,11,.5); }
+  .gantt .tick.month-major .day { color: var(--amber); }
+  .gantt .tick .month-tag { position:absolute; top:-1px; left:4px;
+    background: var(--panel); color: var(--amber); padding: 0 4px;
+    font-size:.62rem; font-weight:700; letter-spacing:.04em;
+    border:1px solid rgba(245,158,11,.4); border-radius: 0 0 4px 4px; }
+
   .gantt .asset { padding: 8px 8px; border-bottom:1px solid var(--line);
     font-weight:600; font-size:.85rem; display:flex; flex-direction:column; justify-content:center; }
   .gantt .asset .count { font-weight:400; color:var(--muted); font-size:.7rem; }
@@ -91,9 +130,13 @@
   .gantt .bar.overlap { outline: 2px solid #f59e0b; outline-offset:1px; }
   .gantt .now { position:absolute; top:0; bottom:0; width:2px;
     background: rgba(245,158,11,.8); z-index:5; pointer-events:none; }
-  .gantt .now::after { content:"NOW"; position:absolute; top:-18px; left:-16px;
-    font-size:.65rem; color:var(--amber); background:var(--panel); padding:1px 4px;
-    border:1px solid var(--line); border-radius:3px; }
+  .gantt .now[data-first="1"]::after { content:"NOW"; position:absolute; top:-19px; left:-14px;
+    font-size:.65rem; color:var(--amber); background:var(--panel); padding:1px 5px;
+    border:1px solid rgba(245,158,11,.4); border-radius:3px; z-index:10;
+    font-weight:600; }
+  .gantt .empty { padding: 14px; color: var(--muted); text-align:center;
+    grid-column: 1 / span 2; font-size: .85rem; }
+
   .legend { display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:.78rem; color:var(--muted); }
   .legend .item { display:flex; align-items:center; gap:6px; }
   .swatch { width:14px; height:12px; border-radius:2px; }
@@ -112,8 +155,6 @@
   .badge.done { background: rgba(16,185,129,.12); color: var(--green); border:1px solid rgba(16,185,129,.3); }
 
   .chart-box { height: 260px; position: relative; }
-  .chart-box.tall { height: 320px; }
-
   footer { margin-top: 30px; color: var(--muted); font-size:.78rem;
     border-top:1px solid var(--line); padding-top: 14px; }
 </style>
@@ -131,6 +172,24 @@
       <span id="rangeLabel">…</span>
     </div>
   </header>
+
+  <div class="filters" id="filters">
+    <span class="lbl">Range:</span>
+    <button data-range="all"      class="active">All time</button>
+    <button data-range="7">Last 7d</button>
+    <button data-range="14">Last 14d</button>
+    <button data-range="30">Last 30d</button>
+    <div class="sep"></div>
+    <div class="custom-range">
+      <span class="lbl">Custom:</span>
+      <input type="date" id="dateFrom" />
+      <span>→</span>
+      <input type="date" id="dateTo" />
+      <button data-range="custom">Apply</button>
+    </div>
+    <span class="filter-status" id="filterStatus"></span>
+    <button class="reset" id="resetBtn" style="display:none;">Reset</button>
+  </div>
 
   <div class="insight" id="insight"></div>
 
@@ -168,7 +227,8 @@
   </div>
 
   <footer>
-    Source: SAP S/4HANA Maintenance Notifications export · 14 records ·
+    Source: SAP S/4HANA Maintenance Notifications export ·
+    <span id="rowCount">–</span> records shown ·
     Generated <span id="generated"></span> ·
     "Still down" = no malfunction end time recorded (treated as ongoing).
   </footer>
@@ -193,12 +253,11 @@ const eventType = n => {
   if (t.includes('COMMISSION')) return 'commissioning';
   if (t.includes('BREAKDOWN') || t.includes('P1') || t.includes('ROLL OVER') || t.includes('HYDRAULIC')) return 'breakdown';
   if (t.includes('REPLACE') || t.includes('REPAIR')) return 'maintenance';
-  return 'commissioning';  // default for a new site
+  return 'commissioning';
 };
 const fmtDT = iso => {
   if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleString('en-AU', {
+  return new Date(iso).toLocaleString('en-AU', {
     day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit',
     timeZone:'Australia/Perth'
   });
@@ -206,175 +265,83 @@ const fmtDT = iso => {
 const fmtD = iso => {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-AU', {
-    day:'2-digit', month:'short', timeZone:'Australia/Perth'
+    day:'2-digit', month:'short', year:'numeric', timeZone:'Australia/Perth'
   });
 };
 const hrsBetween = (a, b) => {
   const e = b ? new Date(b) : now;
   return (e - new Date(a)) / 3.6e6;
 };
+const startOfDay = d => {
+  const x = new Date(d); x.setHours(0,0,0,0); return x;
+};
+const dayKey = d => {
+  const x = startOfDay(d);
+  return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+};
+const dateOnly = iso => iso ? dayKey(new Date(iso)) : null;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KPI
-const still = DATA.events.filter(e => e.still_down);
-const done  = DATA.events.filter(e => !e.still_down);
-const totalLoggedHrs = DATA.events.reduce((s,e) => {
-  if (e.duration_hrs && e.duration_hrs > 0) return s + e.duration_hrs;
-  // for still-down, compute "live" hours
-  return s + hrsBetween(e.start, e.end);
-}, 0);
-const assets = [...new Set(DATA.events.map(e => e.asset))];
+// Filter state
+const ALL = DATA.events;
+let filterMode = 'all';   // 'all' | '7' | '14' | '30' | 'custom'
+let customFrom = null;    // 'YYYY-MM-DD'
+let customTo   = null;    // 'YYYY-MM-DD'
 
-document.getElementById('kpiEvents').textContent  = DATA.events.length;
-document.getElementById('kpiEventsD').textContent = `${done.length} closed · ${still.length} open`;
-document.getElementById('kpiDown').textContent    = still.length;
-document.getElementById('kpiDownD').textContent   = still.length
-  ? `${[...new Set(still.map(s=>s.asset))].join(', ')}`
-  : 'All clear';
-document.getElementById('kpiAssets').textContent  = assets.length;
-document.getElementById('kpiAssetsD').textContent = `${(DATA.events.length / assets.length).toFixed(1)} events / asset`;
-document.getElementById('kpiHours').textContent   = Math.round(totalLoggedHrs);
-document.getElementById('kpiHoursD').textContent  = `≈ ${(totalLoggedHrs/24).toFixed(1)} equipment-days`;
-
-// Range label
-const minT = Math.min(...DATA.events.map(e => new Date(e.start).getTime()));
-const maxT = Math.max(...DATA.events.map(e => new Date(e.end || now).getTime()));
-document.getElementById('rangeLabel').textContent =
-  `${fmtD(new Date(minT).toISOString())} → ${fmtD(new Date(maxT).toISOString())}`;
-
-// Headline insight
-const topFleet = Object.entries(
-  DATA.events.reduce((a,e) => {
-    const k = fleetClass(e.asset);
-    a[k] = (a[k]||0) + (e.duration_hrs || hrsBetween(e.start, e.end));
-    return a;
-  }, {})
-).sort((a,b)=>b[1]-a[1])[0];
-const topAsset = Object.entries(
-  DATA.events.reduce((a,e) => {
-    a[e.asset] = (a[e.asset]||0) + (e.duration_hrs || hrsBetween(e.start, e.end));
-    return a;
-  }, {})
-).sort((a,b)=>b[1]-a[1])[0];
-document.getElementById('insight').innerHTML =
-  `<strong>${still.length}</strong> asset${still.length===1?'':'s'} currently down — ` +
-  `top offender <strong>${topAsset[0]}</strong> with <strong>${Math.round(topAsset[1])} hrs</strong> logged. ` +
-  `<strong>${topFleet[0]}</strong> dominate the downtime ledger. ` +
-  (still.length
-    ? `Open jobs waiting on parts/repair — flag the wiper + hydraulic repairs on <strong>DR3281</strong> and the LV4161 fuse-link (still chasing OEM part).`
-    : `Fleet is fully operational. ✅`);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GANTT — overlaps + still-down detection
-// group by asset
-const byAsset = {};
-DATA.events.forEach(e => {
-  (byAsset[e.asset] = byAsset[e.asset] || []).push(e);
-});
-const sortedAssets = Object.keys(byAsset).sort((a,b) => {
-  const aa = byAsset[a].reduce((s,e)=>s+hrsBetween(e.start,e.end),0);
-  const bb = byAsset[b].reduce((s,e)=>s+hrsBetween(e.start,e.end),0);
-  return bb - aa;
-});
-
-// detect overlaps per asset
-Object.values(byAsset).forEach(list => {
-  for (let i=0;i<list.length;i++) {
-    for (let j=i+1;j<list.length;j++) {
-      const a = list[i], b = list[j];
-      const aS = new Date(a.start), aE = a.end ? new Date(a.end) : now;
-      const bS = new Date(b.start), bE = b.end ? new Date(b.end) : now;
-      if (aS < bE && bS < aE) { a._overlap = true; b._overlap = true; }
-    }
+function filteredEvents() {
+  let from, to;
+  const refEnd = startOfDay(now);
+  if (filterMode === 'all') {
+    return [...ALL];
+  } else if (filterMode === '7' || filterMode === '14' || filterMode === '30') {
+    const n = parseInt(filterMode, 10);
+    from = new Date(refEnd.getTime() - (n - 1) * 86400000);
+    to   = refEnd;
+  } else if (filterMode === 'custom') {
+    if (!customFrom && !customTo) return [...ALL];
+    from = customFrom ? new Date(customFrom + 'T00:00:00') : new Date(0);
+    to   = customTo   ? new Date(customTo   + 'T23:59:59') : now;
   }
-});
-
-// build gantt
-const ganttEl = document.getElementById('gantt');
-// header
-const h1 = document.createElement('div'); h1.className = 'gh'; h1.textContent = 'Asset';
-const h2 = document.createElement('div'); h2.className = 'gh right'; h2.textContent = 'Timeline';
-ganttEl.appendChild(h1); ganttEl.appendChild(h2);
-
-// Cap the visible range: latest event end OR now, whichever is later, with
-// 6h padding on each side. This stops still-down bars from stretching the
-// timeline off the right edge.
-const rangeStart = minT - 6 * 3600 * 1000;
-const rangeEnd   = maxT + 6 * 3600 * 1000;
-const rangeMs    = rangeEnd - rangeStart;
-
-sortedAssets.forEach(asset => {
-  // asset label cell
-  const ac = document.createElement('div');
-  ac.className = 'asset';
-  const totalH = byAsset[asset].reduce((s,e)=>s + hrsBetween(e.start, e.end), 0);
-  ac.innerHTML = `<div>${asset}</div><div class="count">${byAsset[asset].length} evt · ${Math.round(totalH)}h</div>`;
-  ganttEl.appendChild(ac);
-
-  // lane
-  const lane = document.createElement('div');
-  lane.className = 'lane';
-
-  // day gridlines
-  const dayMs = 86400000;
-  const startDay = new Date(rangeStart); startDay.setHours(0,0,0,0);
-  for (let d = startDay.getTime(); d <= rangeEnd; d += dayMs) {
-    const x = ((d - rangeStart) / rangeMs) * 100;
-    if (x < 0 || x > 100) continue;
-    const g = document.createElement('div');
-    g.style.cssText = `position:absolute; left:${x}%; top:0; bottom:0;
-      border-left:1px dashed rgba(255,255,255,.05);`;
-    lane.appendChild(g);
-  }
-
-  // bars
-  byAsset[asset].forEach(e => {
-    const s = new Date(e.start).getTime();
-    const en = e.end ? new Date(e.end).getTime() : now.getTime();
-    const left = ((s - rangeStart) / rangeMs) * 100;
-    const w = Math.max(((en - s) / rangeMs) * 100, 0.6);
-    const bar = document.createElement('div');
-    bar.className = 'bar ' + (e.still_down ? 'still' : eventType(e.notification));
-    if (e._overlap && eventType(e.notification) === 'breakdown') bar.classList.add('overlap');
-    bar.style.left = left + '%';
-    bar.style.width = w + '%';
-    const lbl = (e.notification.split(' (')[0] || '').slice(0, 28);
-    bar.textContent = e.still_down ? '🔧 ' + lbl : lbl;
-    bar.title = `${e.notification}\nAsset: ${e.asset}\nStart: ${fmtDT(e.start)}\nEnd: ${e.end ? fmtDT(e.end) : 'STILL DOWN'}\nDuration: ${(e.duration_hrs||hrsBetween(e.start,e.end)).toFixed(1)} h\n\n${e.text}`;
-    lane.appendChild(bar);
+  return ALL.filter(e => {
+    const s = new Date(e.start);
+    const eEnd = e.end ? new Date(e.end) : now;
+    // overlap with [from, to]
+    return s <= to && eEnd >= from;
   });
-
-  // "now" marker if within range
-  if (now >= rangeStart && now <= rangeEnd) {
-    const nx = ((now - rangeStart) / rangeMs) * 100;
-    const m = document.createElement('div');
-    m.className = 'now';
-    m.style.left = nx + '%';
-    lane.appendChild(m);
-  }
-  ganttEl.appendChild(lane);
-});
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fleet chart
-const fleetAgg = {};
-DATA.events.forEach(e => {
-  const k = fleetClass(e.asset);
-  const h = e.duration_hrs || hrsBetween(e.start, e.end);
-  fleetAgg[k] = (fleetAgg[k]||0) + h;
-});
-const fleetLabels = Object.keys(fleetAgg);
-new Chart(document.getElementById('fleetChart'), {
+// Build Gantt axis ticks (discrete day labels, month-major markers)
+function buildAxis(rangeStart, rangeEnd) {
+  const ticks = [];
+  const totalDays = Math.max(1, Math.round((rangeEnd - rangeStart) / 86400000));
+  // Heuristic: pick tick stride so we show ~6-12 labels total
+  let stride = 1;
+  if (totalDays > 14)  stride = 2;
+  if (totalDays > 30)  stride = 3;
+  if (totalDays > 60)  stride = 5;
+  if (totalDays > 120) stride = 7;
+  if (totalDays > 365) stride = 14;
+
+  const cur = new Date(rangeStart);
+  cur.setHours(0,0,0,0);
+  let prevMonth = -1;
+  while (cur <= rangeEnd) {
+    const monthMajor = cur.getMonth() !== prevMonth;
+    prevMonth = cur.getMonth();
+    ticks.push({ date: new Date(cur), monthMajor });
+    cur.setDate(cur.getDate() + stride);
+  }
+  return { ticks, stride, totalDays };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chart.js handles — created once, updated on filter
+const fleetCtx = document.getElementById('fleetChart').getContext('2d');
+const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+const fleetChart = new Chart(fleetCtx, {
   type:'bar',
-  data:{
-    labels: fleetLabels,
-    datasets:[{
-      label:'Hours',
-      data: fleetLabels.map(l => Math.round(fleetAgg[l])),
-      backgroundColor: fleetLabels.map(fleetColor),
-      borderRadius: 4
-    }]
-  },
+  data:{ labels:[], datasets:[{ label:'Hours', data:[], backgroundColor:[], borderRadius:4 }] },
   options:{
     responsive:true, maintainAspectRatio:false,
     plugins:{ legend:{display:false} },
@@ -384,28 +351,10 @@ new Chart(document.getElementById('fleetChart'), {
     }
   }
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Daily chart
-const dayBuckets = {};
-DATA.events.forEach(e => {
-  const d = new Date(e.start);
-  const key = d.toLocaleDateString('en-AU',{day:'2-digit',month:'short',timeZone:'Australia/Perth'});
-  dayBuckets[key] = (dayBuckets[key]||0) + 1;
-});
-const dailyLabels = Object.keys(dayBuckets);
-const dailyVals = dailyLabels.map(l => dayBuckets[l]);
-new Chart(document.getElementById('dailyChart'), {
+const dailyChart = new Chart(dailyCtx, {
   type:'bar',
-  data:{
-    labels: dailyLabels,
-    datasets:[{
-      label:'Notifications opened',
-      data: dailyVals,
-      backgroundColor:'#f59e0b',
-      borderRadius: 4
-    }]
-  },
+  data:{ labels:[], datasets:[{ label:'Notifications opened', data:[],
+    backgroundColor:'#f59e0b', borderRadius:4 }] },
   options:{
     responsive:true, maintainAspectRatio:false,
     plugins:{ legend:{display:false} },
@@ -417,45 +366,334 @@ new Chart(document.getElementById('dailyChart'), {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Table
-const tbody = document.querySelector('#tbl tbody');
-[...DATA.events].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e => {
-  const type = eventType(e.notification);
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td>${e.still_down
-        ? '<span class="badge down">Down</span>'
-        : type==='breakdown'
-          ? '<span class="badge breakdown">Breakdown</span>'
-          : type==='maintenance'
-            ? '<span class="badge maintenance">Repair</span>'
-            : '<span class="badge commissioning">Commissioning</span>'}</td>
-    <td><strong>${e.asset}</strong></td>
-    <td>${e.notification.split(' (')[0]}<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">${(e.text||'').slice(0,90)}…</div></td>
-    <td>${fmtDT(e.start)}</td>
-    <td>${e.end ? fmtDT(e.end) : '<span style="color:var(--red);">— open —</span>'}</td>
-    <td>${(e.duration_hrs || hrsBetween(e.start, e.end)).toFixed(1)}</td>
-    <td style="color:var(--muted);font-size:.78rem;">${e.order || '—'}</td>
-  `;
-  tbody.appendChild(tr);
-});
+// Master render
+function render() {
+  const events = filteredEvents();
+  const still = events.filter(e => e.still_down);
+  const done  = events.filter(e => !e.still_down);
+  const assets = [...new Set(events.map(e => e.asset))];
+  const totalLoggedHrs = events.reduce((s,e) => {
+    return s + (e.duration_hrs && e.duration_hrs > 0
+      ? e.duration_hrs
+      : hrsBetween(e.start, e.end));
+  }, 0);
+
+  // KPIs
+  document.getElementById('kpiEvents').textContent  = events.length;
+  document.getElementById('kpiEventsD').textContent = events.length
+    ? `${done.length} closed · ${still.length} open` : 'no data in range';
+  document.getElementById('kpiDown').textContent    = still.length;
+  document.getElementById('kpiDownD').textContent   = still.length
+    ? [...new Set(still.map(s=>s.asset))].join(', ')
+    : (events.length ? 'All clear' : '—');
+  document.getElementById('kpiAssets').textContent  = assets.length;
+  document.getElementById('kpiAssetsD').textContent = events.length
+    ? `${(events.length / Math.max(assets.length,1)).toFixed(1)} events / asset` : '—';
+  document.getElementById('kpiHours').textContent   = Math.round(totalLoggedHrs);
+  document.getElementById('kpiHoursD').textContent  = events.length
+    ? `≈ ${(totalLoggedHrs/24).toFixed(1)} equipment-days` : '—';
+  document.getElementById('rowCount').textContent   = events.length;
+
+  // Range label
+  let rStart, rEnd;
+  if (events.length) {
+    rStart = Math.min(...events.map(e => new Date(e.start).getTime()));
+    rEnd   = Math.max(...events.map(e => new Date(e.end || now).getTime()));
+    document.getElementById('rangeLabel').textContent =
+      `${fmtD(new Date(rStart).toISOString())} → ${fmtD(new Date(rEnd).toISOString())}`;
+  } else {
+    document.getElementById('rangeLabel').textContent = 'No events in range';
+  }
+
+  // Headline insight
+  if (!events.length) {
+    document.getElementById('insight').innerHTML =
+      `No notifications fall inside this date range. Try a wider window.`;
+  } else {
+    const topFleet = Object.entries(events.reduce((a,e) => {
+      const k = fleetClass(e.asset);
+      a[k] = (a[k]||0) + (e.duration_hrs || hrsBetween(e.start, e.end));
+      return a;
+    }, {})).sort((a,b)=>b[1]-a[1])[0];
+    const topAsset = Object.entries(events.reduce((a,e) => {
+      a[e.asset] = (a[e.asset]||0) + (e.duration_hrs || hrsBetween(e.start, e.end));
+      return a;
+    }, {})).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById('insight').innerHTML =
+      `<strong>${still.length}</strong> asset${still.length===1?'':'s'} currently down — ` +
+      `top offender <strong>${topAsset[0]}</strong> with <strong>${Math.round(topAsset[1])} hrs</strong> logged. ` +
+      `<strong>${topFleet[0]}</strong> dominate the downtime ledger. ` +
+      (still.length
+        ? `Open jobs waiting on parts/repair — flag the wiper + hydraulic repairs on <strong>DR3281</strong> and the LV4161 fuse-link (still chasing OEM part).`
+        : `All jobs in this window are closed. ✅`);
+  }
+
+  // ── GANTT ──
+  renderGantt(events);
+
+  // ── Fleet chart ──
+  const fleetAgg = {};
+  events.forEach(e => {
+    const k = fleetClass(e.asset);
+    fleetAgg[k] = (fleetAgg[k]||0) + (e.duration_hrs || hrsBetween(e.start, e.end));
+  });
+  const fleetLabels = Object.keys(fleetAgg);
+  fleetChart.data.labels = fleetLabels;
+  fleetChart.data.datasets[0].data = fleetLabels.map(l => Math.round(fleetAgg[l]));
+  fleetChart.data.datasets[0].backgroundColor = fleetLabels.map(fleetColor);
+  fleetChart.update('none');
+
+  // ── Daily chart ──
+  const dayBuckets = {};
+  events.forEach(e => {
+    const k = dateOnly(e.start);
+    dayBuckets[k] = (dayBuckets[k]||0) + 1;
+  });
+  const dailyLabels = Object.keys(dayBuckets).sort();
+  const dailyVals = dailyLabels.map(l => dayBuckets[l]);
+  dailyChart.data.labels = dailyLabels.map(l => {
+    const [y,m,d] = l.split('-');
+    const dt = new Date(`${y}-${m}-${d}T00:00:00`);
+    return dt.toLocaleDateString('en-AU',{day:'2-digit',month:'short'});
+  });
+  dailyChart.data.datasets[0].data = dailyVals;
+  dailyChart.update('none');
+
+  // ── Table ──
+  const tbody = document.querySelector('#tbl tbody');
+  tbody.innerHTML = '';
+  if (!events.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--muted);">No notifications in this range.</td></tr>';
+  } else {
+    [...events].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e => {
+      const type = eventType(e.notification);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${e.still_down
+            ? '<span class="badge down">Down</span>'
+            : type==='breakdown'
+              ? '<span class="badge breakdown">Breakdown</span>'
+              : type==='maintenance'
+                ? '<span class="badge maintenance">Repair</span>'
+                : '<span class="badge commissioning">Commissioning</span>'}</td>
+        <td><strong>${e.asset}</strong></td>
+        <td>${e.notification.split(' (')[0]}<div style="color:var(--muted);font-size:.72rem;margin-top:2px;">${(e.text||'').slice(0,90)}…</div></td>
+        <td>${fmtDT(e.start)}</td>
+        <td>${e.end ? fmtDT(e.end) : '<span style="color:var(--red);">— open —</span>'}</td>
+        <td>${(e.duration_hrs || hrsBetween(e.start, e.end)).toFixed(1)}</td>
+        <td style="color:var(--muted);font-size:.78rem;">${e.order || '—'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ── Activity feed ──
+  const feedEl = document.getElementById('feed');
+  feedEl.innerHTML = '';
+  if (!events.length) {
+    feedEl.innerHTML = '<div style="color:var(--muted); padding:8px 0;">No activity in this range.</div>';
+  } else {
+    [...events].sort((a,b)=>new Date(b.start)-new Date(a.start)).slice(0,8).forEach(e => {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:8px 0; border-bottom:1px solid var(--line);';
+      const t = eventType(e.notification);
+      const icon = e.still_down ? '🔧' : t==='breakdown' ? '⚠️' : '✅';
+      const tail = e.still_down ? ' · <span style="color:var(--red);">STILL DOWN</span>'
+                                : ' · <span style="color:var(--green);">closed</span>';
+      div.innerHTML = `${icon} <strong>${e.asset}</strong> — ${e.notification.split(' (')[0]}
+        <div style="color:var(--muted); font-size:.75rem;">${fmtDT(e.start)}${tail}</div>`;
+      feedEl.appendChild(div);
+    });
+  }
+
+  // Filter status pill
+  const status = document.getElementById('filterStatus');
+  if (filterMode === 'all') {
+    status.textContent = `· showing all ${ALL.length} records`;
+  } else if (['7','14','30'].includes(filterMode)) {
+    status.textContent = `· showing ${events.length} of ${ALL.length} records`;
+  } else {
+    status.textContent = `· ${customFrom || '…'} → ${customTo || '…'} (${events.length} of ${ALL.length})`;
+  }
+  document.getElementById('resetBtn').style.display = (filterMode === 'all') ? 'none' : 'inline-block';
+
+  // Highlight active button
+  document.querySelectorAll('#filters button[data-range]').forEach(b => {
+    b.classList.toggle('active', b.dataset.range === filterMode);
+  });
+}
+
+function renderGantt(events) {
+  const ganttEl = document.getElementById('gantt');
+  ganttEl.innerHTML = '';
+
+  if (!events.length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'No events in this date range.';
+    ganttEl.appendChild(e);
+    return;
+  }
+
+  // group by asset
+  const byAsset = {};
+  events.forEach(e => { (byAsset[e.asset] = byAsset[e.asset] || []).push(e); });
+  const sortedAssets = Object.keys(byAsset).sort((a,b) => {
+    const aa = byAsset[a].reduce((s,e)=>s+hrsBetween(e.start,e.end),0);
+    const bb = byAsset[b].reduce((s,e)=>s+hrsBetween(e.start,e.end),0);
+    return bb - aa;
+  });
+
+  // overlaps
+  Object.values(byAsset).forEach(list => {
+    for (let i=0;i<list.length;i++) for (let j=i+1;j<list.length;j++) {
+      const a = list[i], b = list[j];
+      const aS = new Date(a.start), aE = a.end ? new Date(a.end) : now;
+      const bS = new Date(b.start), bE = b.end ? new Date(b.end) : now;
+      if (aS < bE && bS < aE) { a._overlap = true; b._overlap = true; }
+    }
+  });
+
+  // range
+  let minT = Math.min(...events.map(e => new Date(e.start).getTime()));
+  let maxT = Math.max(...events.map(e => new Date(e.end || now).getTime()));
+  // Snap to day boundaries for cleaner axis labels
+  const axisStart = startOfDay(new Date(minT));
+  const axisEnd   = startOfDay(new Date(maxT));
+  // Extend end by 1 day if maxT is within today (so today has a tick)
+  const extendedEnd = (axisEnd.getTime() < startOfDay(now).getTime())
+    ? startOfDay(now)
+    : (maxT > axisEnd.getTime() ? new Date(axisEnd.getTime() + 86400000) : axisEnd);
+  const rangeStart = axisStart;
+  const rangeEnd   = extendedEnd;
+  const rangeMs    = rangeEnd - rangeStart;
+
+  // header row
+  const h1 = document.createElement('div'); h1.className = 'gh axis-spacer'; h1.textContent = 'Asset';
+  const h2 = document.createElement('div'); h2.className = 'gh axis'; h2.style.position = 'relative';
+  const { ticks, stride, totalDays } = buildAxis(rangeStart, rangeEnd);
+  h2.innerHTML = `<div style="position:absolute; top:4px; right:6px; font-size:.68rem; color:var(--muted);">
+    ${totalDays}d window · ticks every ${stride}d
+  </div>`;
+  ganttEl.appendChild(h1);
+  ganttEl.appendChild(h2);
+
+  // axis tick row (separate row to get proper height)
+  const tickSpacer = document.createElement('div'); tickSpacer.className = 'gh axis-spacer'; tickSpacer.textContent = '';
+  const tickLane = document.createElement('div'); tickLane.className = 'axis';
+  tickLane.style.height = '36px';
+  const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  ticks.forEach(t => {
+    const left = ((t.date - rangeStart) / rangeMs) * 100;
+    const tick = document.createElement('div');
+    tick.className = 'tick' + (t.monthMajor ? ' month-major' : '');
+    tick.style.left = left + '%';
+    tick.innerHTML = `<div class="day">${t.date.getDate()}</div>
+                      <div class="dow">${dow[t.date.getDay()]}</div>`;
+    if (t.monthMajor) {
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const tag = document.createElement('div');
+      tag.className = 'month-tag';
+      tag.textContent = `${monthNames[t.date.getMonth()]} ${t.date.getFullYear()}`;
+      tick.appendChild(tag);
+    }
+    tickLane.appendChild(tick);
+  });
+  // Pad a final tick on the right edge so the last day's label shows
+  ganttEl.appendChild(tickSpacer);
+  ganttEl.appendChild(tickLane);
+
+  // asset rows
+  sortedAssets.forEach(asset => {
+    const ac = document.createElement('div');
+    ac.className = 'asset';
+    const totalH = byAsset[asset].reduce((s,e)=>s + hrsBetween(e.start, e.end), 0);
+    ac.innerHTML = `<div>${asset}</div><div class="count">${byAsset[asset].length} evt · ${Math.round(totalH)}h</div>`;
+    ganttEl.appendChild(ac);
+
+    const lane = document.createElement('div');
+    lane.className = 'lane';
+
+    // background gridlines for each tick
+    ticks.forEach(t => {
+      const x = ((t.date - rangeStart) / rangeMs) * 100;
+      const g = document.createElement('div');
+      g.style.cssText = `position:absolute; left:${x}%; top:0; bottom:0;
+        border-left:1px dashed rgba(255,255,255,.05);`;
+      lane.appendChild(g);
+    });
+
+    byAsset[asset].forEach(e => {
+      const s = new Date(e.start).getTime();
+      const en = e.end ? new Date(e.end).getTime() : now.getTime();
+      const left = ((s - rangeStart) / rangeMs) * 100;
+      const w = Math.max(((en - s) / rangeMs) * 100, 0.6);
+      const bar = document.createElement('div');
+      bar.className = 'bar ' + (e.still_down ? 'still' : eventType(e.notification));
+      if (e._overlap && eventType(e.notification) === 'breakdown') bar.classList.add('overlap');
+      bar.style.left = left + '%';
+      bar.style.width = w + '%';
+      const lbl = (e.notification.split(' (')[0] || '').slice(0, 28);
+      bar.textContent = e.still_down ? '🔧 ' + lbl : lbl;
+      bar.title = `${e.notification}\nAsset: ${e.asset}\nStart: ${fmtDT(e.start)}\nEnd: ${e.end ? fmtDT(e.end) : 'STILL DOWN'}\nDuration: ${(e.duration_hrs||hrsBetween(e.start,e.end)).toFixed(1)} h\n\n${e.text}`;
+      lane.appendChild(bar);
+    });
+
+    if (now >= rangeStart && now <= rangeEnd) {
+      const nx = ((now - rangeStart) / rangeMs) * 100;
+      const m = document.createElement('div');
+      m.className = 'now';
+      m.style.left = nx + '%';
+      // Only show the "NOW" text label on the first lane
+      m.dataset.first = (asset === sortedAssets[0]) ? '1' : '0';
+      lane.appendChild(m);
+    }
+    ganttEl.appendChild(lane);
+  });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Feed
-const feedEl = document.getElementById('feed');
-[...DATA.events].sort((a,b)=>new Date(b.start)-new Date(a.start)).slice(0,8).forEach(e => {
-  const div = document.createElement('div');
-  div.style.cssText = 'padding:8px 0; border-bottom:1px solid var(--line);';
-  const t = eventType(e.notification);
-  const icon = e.still_down ? '🔧' : t==='breakdown' ? '⚠️' : '✅';
-  const tail = e.still_down ? ' · <span style="color:var(--red);">STILL DOWN</span>'
-                            : ' · <span style="color:var(--green);">closed</span>';
-  div.innerHTML = `${icon} <strong>${e.asset}</strong> — ${e.notification.split(' (')[0]}
-    <div style="color:var(--muted); font-size:.75rem;">${fmtDT(e.start)}${tail}</div>`;
-  feedEl.appendChild(div);
+// Filter wiring
+document.querySelectorAll('#filters button[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const r = btn.dataset.range;
+    if (r === 'custom') {
+      const f = document.getElementById('dateFrom').value;
+      const t = document.getElementById('dateTo').value;
+      if (!f && !t) {
+        alert('Pick a From and/or To date, or use a quick range above.');
+        return;
+      }
+      customFrom = f || null;
+      customTo   = t || null;
+      filterMode = 'custom';
+    } else {
+      filterMode = r;
+    }
+    render();
+  });
 });
 
+document.getElementById('resetBtn').addEventListener('click', () => {
+  filterMode = 'all';
+  customFrom = customTo = null;
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  render();
+});
+
+// Set date input bounds based on data
+const allMin = ALL.reduce((m,e)=>Math.min(m, new Date(e.start).getTime()), Infinity);
+const allMax = ALL.reduce((m,e)=>Math.max(m, new Date(e.end || now).getTime()), -Infinity);
+const minD = dayKey(new Date(allMin));
+const maxD = dayKey(new Date(allMax));
+document.getElementById('dateFrom').min = minD;
+document.getElementById('dateFrom').max = maxD;
+document.getElementById('dateTo').min   = minD;
+document.getElementById('dateTo').max   = maxD;
+
 document.getElementById('generated').textContent = new Date().toLocaleString('en-AU',{timeZone:'Australia/Perth'});
+render();
 </script>
 </body>
 </html>
