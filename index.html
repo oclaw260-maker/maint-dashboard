@@ -41,6 +41,19 @@
     transition: all .15s; }
   .get-export:hover { background: var(--green); color: #0a0d12; }
 
+  /* Maintenance superintendent banner */
+  .super-banner { display:flex; align-items:center; gap: 12px;
+    background: linear-gradient(90deg, rgba(245,158,11,.12), rgba(245,158,11,.04));
+    border: 1px solid rgba(245,158,11,.35);
+    border-left: 4px solid var(--amber);
+    border-radius: 8px; padding: 12px 18px; margin-bottom: 20px;
+    flex-wrap: wrap; }
+  .super-banner .icon { font-size: 1.3rem; }
+  .super-banner .label { color: var(--muted); font-size: .82rem;
+    text-transform: uppercase; letter-spacing: .08em; }
+  .super-banner .name { color: var(--amber); font-weight: 700;
+    font-size: 1.05rem; letter-spacing: .01em; }
+
   /* Drag-and-drop overlay */
   #dropOverlay { display:none; position:fixed; inset:0;
     background: rgba(245,158,11,.15); backdrop-filter: blur(2px);
@@ -238,6 +251,14 @@
       </div>
     </div>
   </header>
+
+  <div class="super-banner" role="note" aria-label="Current maintenance superintendent">
+    <span class="icon">👷</span>
+    <div>
+      <div class="label">Current Maintenance Superintendent</div>
+      <div class="name">Richo</div>
+    </div>
+  </div>
 
   <div class="filters" id="filters">
     <span class="lbl">Range:</span>
